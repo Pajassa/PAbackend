@@ -933,8 +933,21 @@ async function sendEmailtoApartment(
         additionalGuests?.length
             ? additionalGuests.map(g => formatDateExact(g.cod, false)).join("<br>")
             : "";
-    const isExtendedTitle = Title.includes("Extended");
-    const subject2 = Preponed ? `Apartments Booking Check out Preponed (${reservationNo}) ` : (isExtendedTitle ? `Apartments Booking Extension Confirmation (${reservationNo})` : `Apartments Booking Confirmation (${reservationNo})`);
+    let subject2 = `Apartments Booking Confirmation (${reservationNo})`;
+
+    if (Preponed) {
+        subject2 = `Apartments Booking Check out Preponed (${reservationNo})`;
+    } else if (Title.includes("Extended")) {
+        subject2 = `Apartments Booking Extension Confirmation (${reservationNo})`;
+    } else if (Title.includes("Preponed")) {
+        subject2 = `Apartments Booking Preponed (${reservationNo})`;
+    } else if (Title.includes("Postponed")) {
+        subject2 = `Apartments Booking Postponed (${reservationNo})`;
+    } else if (Title.includes("Shortened")) {
+        subject2 = `Apartments Booking Shortened (${reservationNo})`;
+    } else if (Title.includes("Modified")) {
+        subject2 = `Apartments Booking Modified (${reservationNo})`;
+    }
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
