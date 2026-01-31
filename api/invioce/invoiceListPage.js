@@ -10,7 +10,8 @@ export const getAllInvoices = async (req, res) => {
         invoice_date, 
         invoice_to, 
         grand_total, 
-        status 
+        status,
+        created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' as created_at 
       FROM invoices 
       ORDER BY created_at DESC
     `;
