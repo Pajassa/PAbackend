@@ -13,6 +13,7 @@ export const getAllReservations = async (req, res) => {
           p.caretaker_name, p.caretaker_number, p.property_url,
           c.client_name, c.state, c.zip_code,
           rai.apartment_type, rai.host_payment_mode, rai.host_email,
+          rai.host_base_rate, rai.host_taxes, rai.host_total_amount,
           COALESCE(
             (
               SELECT JSON_AGG(rag.*) 
@@ -40,6 +41,7 @@ r.id,
   p.caretaker_name, p.caretaker_number, p.property_url,
   c.client_name, c.state, c.zip_code,
   rai.apartment_type, rai.host_payment_mode, rai.host_email,
+  rai.host_base_rate,rai.host_taxes,rai.host_total_amount,
   rai.services
       ORDER BY r.created_at DESC
     `;
