@@ -191,9 +191,15 @@ export async function saveReservation(req, res) {
     const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
 
     // Check for the latest reservation number to increment
-    const countQuery = `SELECT count(*) FROM reservations WHERE reservation_no LIKE $1`;
-    const countResult = await client.query(countQuery, [`PAR-${yy}-${mm}-%`]);
-    const nextNum = parseInt(countResult.rows[0].count, 10) + 1;
+    const latestQuery = `SELECT reservation_no FROM reservations WHERE reservation_no LIKE $1 ORDER BY reservation_no DESC LIMIT 1`;
+    const latestResult = await client.query(latestQuery, [`PAR-${yy}-${mm}-%`]);
+
+    let nextNum = 1;
+    if (latestResult.rows.length > 0) {
+      const lastReservationNo = latestResult.rows[0].reservation_no;
+      const lastNum = parseInt(lastReservationNo.split('-').pop(), 10);
+      nextNum = lastNum + 1;
+    }
     const reservationNo = `PAR-${yy}-${mm}-${String(nextNum).padStart(6, "0")}`;
 
     console.log("guestInfo received:", guestInfo);

@@ -395,16 +395,16 @@ export async function sendEmail(req, res) {
                                                                                     <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
                                                                                         <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
                                                                                         <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                            ${formatDateExact(originalBooking.old_check_in_date, true)} at ${originalBooking.old_check_in_time}
+                                                                                            ${formatDateExact(originalBooking.old_check_in_date, true)}
                                                                                         </span>
                                                                                         <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
                                                                                         <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                            ${formatDateExact(checkin, true)} at ${check_in_time}
+                                                                                            ${formatDateExact(checkin, true)}
                                                                                         </span>
                                                                                     </div>
                                                                                 ` : `
                                                                                     <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        ${formatDateExact(checkin, true)} at ${check_in_time}
+                                                                                        ${formatDateExact(checkin, true)} 
                                                                                     </span>
                                                                                 `}
                                                                                 <br>
@@ -454,16 +454,16 @@ export async function sendEmail(req, res) {
                                                                                     <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
                                                                                         <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
                                                                                         <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                            ${formatDateExact(originalBooking.old_check_out_date, false)} at ${originalBooking.old_check_out_time}
+                                                                                            ${formatDateExact(originalBooking.old_check_out_date, false)}
                                                                                         </span>
                                                                                         <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
                                                                                         <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                            ${formatDateExact(checkout, false)} at ${check_out_time}
+                                                                                            ${formatDateExact(checkout, false)}
                                                                                         </span>
                                                                                     </div>
                                                                                 ` : `
                                                                                     <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        ${formatDateExact(checkout, false)} at ${check_out_time}
+                                                                                        ${formatDateExact(checkout, false)}
                                                                                     </span>
                                                                                 `}
                                                                                 <br>
@@ -834,8 +834,8 @@ export async function sendEmail(req, res) {
         // -----------------------------
         const guestResult = await resend.emails.send({
             from: "hosting@pajasa.com",
-            to: emailList,
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: emailList,
+            to: ["harshitshukla6388@gmail.com"],
             subject,
             html: GUEST_TEMPLATE_HTML,
             attachments
@@ -1091,16 +1091,16 @@ async function sendEmailtoApartment(
                                                                                         <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
                                                                                             <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
                                                                                             <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                                ${formatDateExact(originalBooking.old_check_in_date, true)} at ${originalBooking.old_check_in_time}
+                                                                                                ${formatDateExact(originalBooking.old_check_in_date, true)}
                                                                                             </span>
                                                                                             <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
                                                                                             <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                                ${formatDateExact(checkin, true)} at ${check_in_time}
+                                                                                                ${formatDateExact(checkin, true)}
                                                                                             </span>
                                                                                         </div>
                                                                                     ` : `
                                                                                         <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                            ${formatDateExact(checkin, true)} at ${check_in_time}
+                                                                                            ${formatDateExact(checkin, true)} 
                                                                                         </span>
                                                                                     `} <br>
                                                                                 </td>
@@ -1149,16 +1149,16 @@ async function sendEmailtoApartment(
                                                                                     <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
                                                                                         <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
                                                                                         <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                            ${formatDateExact(originalBooking.old_check_out_date, false)} at ${originalBooking.old_check_out_time}
+                                                                                            ${formatDateExact(originalBooking.old_check_out_date, false)}
                                                                                         </span>
                                                                                         <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
                                                                                         <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                            ${formatDateExact(checkout, false)} at ${check_out_time}
+                                                                                            ${formatDateExact(checkout, false)}
                                                                                         </span>
                                                                                     </div>
                                                                                 ` : `
                                                                                     <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        ${formatDateExact(checkout, false)} at ${check_out_time}
+                                                                                        ${formatDateExact(checkout, false)} 
                                                                                     </span>
                                                                                 `}
                                                                                 <br>
@@ -1211,7 +1211,7 @@ async function sendEmailtoApartment(
                                                                             <tr>
                                                                                 <td>
                                                                                     <p style="font:bold 12px tahoma;color:#333333">Amount</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${modeofpayment === "Bill to Company" ? "As Per Contract" : amount}</span>
+                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${host_payment_mode === "Bill to Pajasa" ? "As Per Contract" : amount}</span>
                                                                                 </td>
                                                                             </tr>
                                                                         </tbody>
@@ -1486,8 +1486,8 @@ async function sendEmailtoApartment(
 
     const { data, error } = await resend.emails.send({
         from: "hosting@pajasa.com",
-        to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-        // to: ["harshitshukla6388@gmail.com"],
+        // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+        to: ["harshitshukla6388@gmail.com"],
         subject: subject2,
         html,
     });
