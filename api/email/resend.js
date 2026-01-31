@@ -18,6 +18,9 @@ export async function sendEmail(req, res) {
             contactperson,
             contactnumber,
             guestname,
+            host_base_rate,
+            host_taxes,
+            host_total_amount,
             contactnumberguest,
             checkin,
             checkout,
@@ -30,6 +33,7 @@ export async function sendEmail(req, res) {
             roomtype,
             inclusions,
             reservationNo,
+            apartment_type,
             created_at,
             host_email,
             clientName,
@@ -38,6 +42,7 @@ export async function sendEmail(req, res) {
             address3,
             occupancy,
             base_rate,
+            tariff_type,
             taxes,
             host_payment_mode,
             services,
@@ -180,7 +185,7 @@ export async function sendEmail(req, res) {
 
 
         const paymentDetails = modeofpayment === "Bill to Company"
-            ? "As Per Contract"
+            ? `${tariff_type}`
             : `
                                 <div>Base Rate: Rs ${base_rate}</div>
                                 <div>Tax (${taxes}%): Rs ${taxAmount}</div>
@@ -805,6 +810,7 @@ export async function sendEmail(req, res) {
             amount,
             modeofpayment,
             guesttype,
+            apartment_type,
             roomtype,
             inclusions,
             reservationNo,
@@ -822,7 +828,10 @@ export async function sendEmail(req, res) {
             originalBooking,
             check_in_time,
             check_out_time,
-            modificationType  // ✅ Add this
+            modificationType,
+            host_base_rate,
+            host_taxes,
+            host_total_amount
         );
 
         if (aptResult.error) {
@@ -880,6 +889,7 @@ async function sendEmailtoApartment(
     amount,
     modeofpayment,
     guesttype,
+    apartment_type,
     roomtype,
     inclusions,
     reservationNo,
@@ -897,8 +907,28 @@ async function sendEmailtoApartment(
     originalBooking,
     check_in_time,
     check_out_time,
-    modificationType  // ✅ Add this
+    modificationType,
+    host_base_rate,
+    host_taxes,
+    host_total_amount
 ) {
+    const hostTaxAmount = (host_base_rate * host_taxes) / 100;
+    const hostPaymentDetails = host_payment_mode === "Bill to Pajasa"
+        ? `${apartment_type}`
+        : `
+                                <div>Base Rate: Rs ${host_base_rate}</div>
+                                <div>Tax (${host_taxes}%): Rs ${hostTaxAmount}</div>
+                                <div>
+                                    <strong style="color: black;">
+                                    Chargeable Amount (Per Night): Rs ${host_total_amount}
+                                    </strong>
+                                </div>
+                                <div>
+                                    <strong style="color: red;">
+                                    Amount to Pay: Rs ${host_total_amount * chargeabledays}
+                                    </strong>
+                                </div>
+                                `;
     const additionalGuestsHtml =
         additionalGuests?.length
             ? additionalGuests.map(g => formatDateExact(g.cod, false)).join("<br>")
@@ -1211,7 +1241,7 @@ async function sendEmailtoApartment(
                                                                             <tr>
                                                                                 <td>
                                                                                     <p style="font:bold 12px tahoma;color:#333333">Amount</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${host_payment_mode === "Bill to Pajasa" ? "As Per Contract" : amount}</span>
+                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${hostPaymentDetails}</span>
                                                                                 </td>
                                                                             </tr>
                                                                         </tbody>
