@@ -42,9 +42,24 @@ export const createInvoice = async (req, res) => {
       apartmentBillNo,
       currency,
       conversionRate,
-      reservationId,
+      reservationIds, // Array expected
       lineItems
     } = req.body;
+
+    // ====================================
+    // 0️⃣ CHECK FOR DUPLICATES
+    // ====================================
+    if (apartmentBillNo) {
+      const checkQuery = `SELECT id FROM invoices WHERE invoice_number = $1`;
+      const checkResult = await client.query(checkQuery, [apartmentBillNo]);
+
+      if (checkResult.rows.length > 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          error: `Invoice number ${apartmentBillNo} already exists.`
+        });
+      }
+    }
 
     // ====================================
     // 1️⃣ CALCULATE TOTALS
@@ -62,6 +77,9 @@ export const createInvoice = async (req, res) => {
     // ====================================
     // 2️⃣ INSERT INVOICE
     // ====================================
+    // Use the first reservation ID as the "primary" for backward compatibility if needed, or null
+    const primaryReservationId = reservationIds && reservationIds.length > 0 ? reservationIds[0] : null;
+
     const invoiceQuery = `
       INSERT INTO invoices (
         invoice_number, reservation_id, invoice_date, invoice_to,
@@ -80,15 +98,15 @@ export const createInvoice = async (req, res) => {
 
     const invoiceValues = [
       apartmentBillNo,
-      reservationId,
-      formatDate(date),              // 🔥 FIXED DATE ISSUE
+      primaryReservationId,
+      formatDate(date),
       invoiceTo,
       stateForBilling,
       pan,
       status,
       paymentMethod,
       currency,
-      toNum(conversionRate),         // 🔥 FIXED NUMERIC
+      toNum(conversionRate),
       subTotal,
       taxTotal,
       grandTotal,
@@ -96,15 +114,36 @@ export const createInvoice = async (req, res) => {
       displayFoodCharge === "Yes",
       extraServices === "Yes",
       servicesName,
-      toNum(servicesAmount),         // 🔥 FIXED NUMERIC
+      toNum(servicesAmount),
       pdfPassword,
-      toNum(pageBreak),              // 🔥 FIXED NUMERIC
-      toNum(guestNameWidth),         // 🔥 FIXED NUMERIC
-      toNum(roundOffValue)           // 🔥 FIXED NUMERIC
+      toNum(pageBreak),
+      toNum(guestNameWidth),
+      toNum(roundOffValue)
     ];
 
     const invoiceResult = await client.query(invoiceQuery, invoiceValues);
     const invoiceId = invoiceResult.rows[0].id;
+
+    // ====================================
+    // 2.5️⃣ INSERT INVOICE RESERVATIONS
+    // ====================================
+    // Create connection table if not exists (Best effort, usually done in migration)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoice_reservations (
+        invoice_id INT, 
+        reservation_id INT, 
+        PRIMARY KEY (invoice_id, reservation_id)
+      );
+    `);
+
+    if (reservationIds && Array.isArray(reservationIds)) {
+      for (const resId of reservationIds) {
+        await client.query(
+          `INSERT INTO invoice_reservations (invoice_id, reservation_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [invoiceId, resId]
+        );
+      }
+    }
 
     // ====================================
     // 3️⃣ INSERT LINE ITEMS
@@ -121,7 +160,7 @@ export const createInvoice = async (req, res) => {
       await client.query(itemQuery, [
         invoiceId,
         item.location,
-        item.foodTariff,
+        item.foodTariff, // Note: description field mapping seems to be foodTariff here based on previous code
         item.gstId,
         toNum(item.days),
         toNum(item.tariff),
