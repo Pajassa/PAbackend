@@ -843,8 +843,8 @@ export async function sendEmail(req, res) {
         // -----------------------------
         const guestResult = await resend.emails.send({
             from: "hosting@pajasa.com",
-            // to: emailList,
-            to: ["harshitshukla6388@gmail.com"],
+            to: emailList,
+            // to: ["harshitshukla6388@gmail.com"],
             subject,
             html: GUEST_TEMPLATE_HTML,
             attachments
@@ -1529,8 +1529,8 @@ async function sendEmailtoApartment(
 
     const { data, error } = await resend.emails.send({
         from: "hosting@pajasa.com",
-        // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-        to: ["harshitshukla6388@gmail.com"],
+        to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+        // to: ["harshitshukla6388@gmail.com"],
         subject: subject2,
         html,
     });
