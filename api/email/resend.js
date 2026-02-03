@@ -101,7 +101,30 @@ export async function sendEmail(req, res) {
         console.log('  - modification_tags:', modification_tags);
         console.log('  - status:', status);
         console.log('  - checkin:', checkin);
+        console.log('  - checkin:', checkin);
         console.log('  - checkout:', checkout);
+
+        // ✅ Handle Cancellation Email Explicitly
+        if (status === 'Cancelled') {
+            const cancellationResult = await sendCancellationEmail({
+                guest_email: guestemail,
+                guest_name: guestname,
+                reservation_no: reservationNo,
+                check_in_date: checkin,
+                check_out_date: checkout,
+                created_at: created_at,
+                contact_number: contactnumber
+            });
+
+            // If sendCancellationEmail handles the response (it currently doesn't, so we send it here)
+            // But checking sendCancellationEmail, it acts as a helper.
+            // Let's assume we return JSON here.
+            return res.json({
+                success: true,
+                message: "Cancellation email sent",
+                data: cancellationResult
+            });
+        }
 
         if (originalBooking) {
             const oldCheckIn = new Date(originalBooking.old_check_in_date);
@@ -794,6 +817,23 @@ export async function sendEmail(req, res) {
 </body>
 </html>`;
 
+        // ✅ FETCH HOST NAME FROM DB
+        let fetchedHostName = null;
+        try {
+            const hostQuery = `
+                SELECT rai.host_name 
+                FROM reservation_additional_info rai
+                JOIN reservations r ON rai.reservation_id = r.id
+                WHERE r.reservation_no = $1
+            `;
+            const hostResult = await pool.query(hostQuery, [reservationNo]);
+            if (hostResult.rows.length > 0) {
+                fetchedHostName = hostResult.rows[0].host_name;
+            }
+        } catch (err) {
+            console.error('Error fetching host_name:', err);
+        }
+
         // -----------------------------
         // 1️⃣ SEND EMAIL TO APARTMENT
         // -----------------------------
@@ -831,7 +871,8 @@ export async function sendEmail(req, res) {
             modificationType,
             host_base_rate,
             host_taxes,
-            host_total_amount
+            host_total_amount,
+            fetchedHostName
         );
 
         if (aptResult.error) {
@@ -843,8 +884,8 @@ export async function sendEmail(req, res) {
         // -----------------------------
         const guestResult = await resend.emails.send({
             from: "hosting@pajasa.com",
-            to: emailList,
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: emailList,
+            to: ["harshitshukla6388@gmail.com"],
             subject,
             html: GUEST_TEMPLATE_HTML,
             attachments
@@ -910,9 +951,11 @@ async function sendEmailtoApartment(
     modificationType,
     host_base_rate,
     host_taxes,
-    host_total_amount
+    host_total_amount,
+    fetchedHostName
 ) {
     const hostTaxAmount = (host_base_rate * host_taxes) / 100;
+    const hostName = fetchedHostName || "";
     const hostPaymentDetails = host_payment_mode === "Bill to Pajasa"
         ? `${apartment_type}`
         : `
@@ -1009,7 +1052,7 @@ async function sendEmailtoApartment(
                                                     <h1 style="font-family:tahoma;font-size:35px;color:#333333;text-align:left;line-height:1.3">
                                                         ${Title}
                                                     </h1>
-                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Hi,Veridical Hospitality <br>
+                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Hi, ${hostName} <br>
                                                     <br>Thank you for the confirmation</p><br>
                                                     <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
                                                         We are happy to confirm booking with following details :
@@ -1529,11 +1572,171 @@ async function sendEmailtoApartment(
 
     const { data, error } = await resend.emails.send({
         from: "hosting@pajasa.com",
-        to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-        // to: ["harshitshukla6388@gmail.com"],
+        // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+        to: ["harshitshukla6388@gmail.com"],
         subject: subject2,
         html,
     });
 
     return { data, error };
+}
+
+export async function sendCancellationEmail({
+    guest_email,
+    guest_name,
+    reservation_no,
+    check_in_date,
+    check_out_date,
+    created_at,
+    contact_number
+}) {
+    try {
+        const formatted = formatDateExact(created_at, false);
+        const checkinFormatted = formatDateExact(check_in_date, true);
+        const checkoutFormatted = formatDateExact(check_out_date, false);
+        const subject = `Booking Cancelled (${reservation_no})`;
+
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Cancelled</title>
+    <style>
+        @media only screen and (max-width: 600px) {
+            .main-t { width: 100% !important; max-width: 100% !important; }
+            .stack-t { width: 100% !important; display: block !important; margin-bottom: 10px; }
+            .img-fix { max-width: 100% !important; height: auto !important; }
+            .pad-fix { padding: 10px !important; }
+            .center-m { text-align: center !important; }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0;">
+    <div class="email-container" style="background-color:#ffffff; width:100%;">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ffffff">
+            <tr>
+                <td align="center">
+                    
+                    <!-- HEADER -->
+                    <table class="main-t" width="630" align="center" border="0" cellpadding="0" cellspacing="0">
+                        <tbody>
+                            <tr>
+                                <td width="100%">
+                                    <table width="100%" align="left" border="0" cellpadding="0" cellspacing="0">
+                                        <tbody>
+                                            <tr>
+                                                <td class="stack-c center-m" align="left" bgcolor="#ffffff" width="40%">
+                                                    <a>
+                                                        <img width="120" border="0" alt="" style="display:block;border:none;outline:none;text-decoration:none" src="https://ci3.googleusercontent.com/meips/ADKq_NYKoMISuvorFIpkwyNeleh158If7bBLNRWg1Ad_3zcs0sq0ivLeKz6svCPsRAdZvz3cXQ65U1--NOMCpIoKot9DPz6V7JAtvgsxKwJ8OFa2IRjJ2lgYhFKs4A=s0-d-e1-ft#https://www.pajasaapartments.com/wp-content/uploads/2019/08/logo.png" class="CToWUd">
+                                                    </a>
+                                                </td>
+                                                <td class="stack-c center-m" width="45%" valign="middle" align="right">
+                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Booked on: <span style="font-size:12px tahoma;color:#858585;margin:0;padding-bottom:5px">${formatted}</span></p>
+                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Reservation No.: <span style="color:#f59f0d;font-weight:bold;font-size:12px tahoma">${reservation_no}</span></p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tr><td><hr></td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                     <!-- Main Body -->
+                     <table class="main-t" width="630" align="center" border="0" cellpadding="0" cellspacing="0">
+                        <tbody>
+                             <tr>
+                                <td width="100%" style="padding:20px 0">
+                                     <h1 style="font-family:tahoma;font-size:35px;color:#333333;text-align:left;line-height:1.3">Booking Cancelled</h1>
+                                     <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Hi,</p>
+                                     <br>
+                                     <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">Your Booking has been cancelled with following details..</p>
+                                     <br>
+                                     <hr style="border: 0; border-top: 1px solid #eee;">
+                                </td>
+                             </tr>
+                             <tr>
+                                <td width="100%">
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                            <td width="50%" valign="top" style="padding-bottom: 20px;">
+                                                <p style="font:bold 12px tahoma;color:#333333;margin:0 0 5px 0;">Guest Name</p>
+                                                <table cellpadding="0" cellspacing="0" border="0">
+                                                    <tr>
+                                                        <td valign="middle" style="padding-right: 10px;">
+                                                            <img src="https://ci3.googleusercontent.com/meips/ADKq_NbRo2H3Om_l08yyqDfKMG-HDwxSimiG6UhMkLlaa6e4Uck3degXgdbVVBncdRlOkf-t2KieZgzx326aKca1lVijDqLD7rMiLKYT2CQ=s0-d-e1-ft#http://gos3.ibcdn.com/hjuls8bqkp4op248fja84esc003i.png" width="20" style="display:block;">
+                                                        </td>
+                                                        <td valign="middle">
+                                                            <span style="font-family:tahoma;font-size:14px;color:#858585;">${guest_name}</span>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                            <td width="50%" valign="top" style="padding-bottom: 20px;">
+                                                <p style="font:bold 12px tahoma;color:#333333;margin:0 0 5px 0;">Contact Number</p>
+                                                <span style="font-family:tahoma;font-size:14px;color:#858585;">${contact_number || 'NA'}</span>
+                                            </td>
+                                        </tr>
+                                         <tr>
+                                             <td colspan="2"><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"></td>
+                                         </tr>
+                                        <tr>
+                                            <td width="50%" valign="top" style="padding-bottom: 20px;">
+                                                <p style="font:bold 12px tahoma;color:#333333;margin:0 0 5px 0;">Check In</p>
+                                                <span style="font-family:tahoma;font-size:14px;color:#858585;">${checkinFormatted}</span>
+                                            </td>
+                                            <td width="50%" valign="top" style="padding-bottom: 20px;">
+                                                <p style="font:bold 12px tahoma;color:#333333;margin:0 0 5px 0;">Check Out</p>
+                                                <span style="font-family:tahoma;font-size:14px;color:#858585;">${checkoutFormatted}</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                             </tr>
+                        </tbody>
+                     </table>
+
+                    <!-- FOOTER -->
+                    <table class="main-t" width="630" align="center" border="0" cellpadding="0" cellspacing="0" style="background-color:#f59f0d; margin-top:20px;">
+                         <tbody>
+                            <tr>
+                                <td align="center" style="padding: 15px;">
+                                     <div style="display:-webkit-box; display:flex; flex-wrap:wrap; justify-content:center; gap: 10px;">
+                                        <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Mumbai</a>&nbsp;&nbsp;
+                                        <a href="https://www.pajasaapartments.com/in/pune/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Pune</a>&nbsp;&nbsp;
+                                        <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Bangalore</a>&nbsp;&nbsp;
+                                        <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Hyderabad</a>&nbsp;&nbsp;
+                                        <a href="http://pajasaapartments.com/in/noida/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Noida</a>&nbsp;&nbsp;
+                                        <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Delhi</a>&nbsp;&nbsp;
+                                        <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Gurgaon</a>&nbsp;&nbsp;
+                                        <a href="https://www.pajasaapartments.com/in/chennai/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Chennai</a>
+                                    </div>
+                                </td>
+                            </tr>
+                         </tbody>
+                    </table>
+
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>`;
+
+        const result = await resend.emails.send({
+            from: "hosting@pajasa.com",
+            // to: guest_email.split(',').map(e => e.trim()),
+            to: ["harshitshukla6388@gmail.com"],
+            subject: subject,
+            html: html
+        });
+
+        console.log(`Cancellation email sent.`);
+        return result;
+    } catch (error) {
+        console.error("Error sending cancellation email:", error);
+        return { error };
+    }
 }
