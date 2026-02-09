@@ -52,6 +52,41 @@ export async function sendEmail(req, res) {
             modification_tags
         } = req.body;
 
+
+        // ✅ FETCH HOST NAME FROM DB
+        let fetchedHostName = null;
+        try {
+            const hostQuery = `
+                SELECT rai.host_name 
+                FROM reservation_additional_info rai
+                JOIN reservations r ON rai.reservation_id = r.id
+                WHERE r.reservation_no = $1
+            `;
+            const hostResult = await pool.query(hostQuery, [reservationNo]);
+            if (hostResult.rows.length > 0) {
+                fetchedHostName = hostResult.rows[0].host_name;
+            }
+        } catch (err) {
+            console.error('Error fetching host_name:', err);
+        }
+
+        // ✅ FETCH PROPERTY TYPE FROM DB
+        let fetchedPropertyType = null;
+        try {
+            const propertyQuery = `
+                SELECT p.property_type 
+                FROM properties p
+                JOIN reservations r ON p.property_id = r.property_id
+                WHERE r.reservation_no = $1
+            `;
+            const propertyResult = await pool.query(propertyQuery, [reservationNo]);
+            if (propertyResult.rows.length > 0) {
+                fetchedPropertyType = propertyResult.rows[0].property_type;
+            }
+        } catch (err) {
+            console.error('Error fetching property_type:', err);
+        }
+
         // ✅ Fetch LAST updated version from history (most recent before current)
         let originalBooking = null;
         try {
@@ -628,6 +663,9 @@ export async function sendEmail(req, res) {
                                                                     <tbody>
                                                                         <tr>
                                                                             <td width="45%">
+                                                                                <p style="font:bold 12px tahoma;color:#333333">Property Type</p>
+                                                                                <span style="font-family:tahoma;font-size:14px;color:red;font-weight:bold;margin:0;padding-bottom:5px">${fetchedPropertyType || apartment_type}</span>
+                                                                                <br><br>
                                                                                 <p style="font:bold 12px tahoma;color:#333333">Room Type</p>
                                                                                 <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${roomtype}</span>
                                                                                 <br>
@@ -817,22 +855,7 @@ export async function sendEmail(req, res) {
 </body>
 </html>`;
 
-        // ✅ FETCH HOST NAME FROM DB
-        let fetchedHostName = null;
-        try {
-            const hostQuery = `
-                SELECT rai.host_name 
-                FROM reservation_additional_info rai
-                JOIN reservations r ON rai.reservation_id = r.id
-                WHERE r.reservation_no = $1
-            `;
-            const hostResult = await pool.query(hostQuery, [reservationNo]);
-            if (hostResult.rows.length > 0) {
-                fetchedHostName = hostResult.rows[0].host_name;
-            }
-        } catch (err) {
-            console.error('Error fetching host_name:', err);
-        }
+
 
         // -----------------------------
         // 1️⃣ SEND EMAIL TO APARTMENT
@@ -872,7 +895,8 @@ export async function sendEmail(req, res) {
             host_base_rate,
             host_taxes,
             host_total_amount,
-            fetchedHostName
+            fetchedHostName,
+            fetchedPropertyType
         );
 
         if (aptResult.error) {
@@ -952,7 +976,8 @@ async function sendEmailtoApartment(
     host_base_rate,
     host_taxes,
     host_total_amount,
-    fetchedHostName
+    fetchedHostName,
+    fetchedPropertyType
 ) {
     const hostTaxAmount = (host_base_rate * host_taxes) / 100;
     const hostName = fetchedHostName || "";
@@ -1379,6 +1404,9 @@ async function sendEmailtoApartment(
                                                                         <tbody>
                                                                             <tr>
                                                                                 <td width="45%">
+                                                                                    <p style="font:bold 12px tahoma;color:#333333">Property Type</p>
+                                                                                    <span style="font-family:tahoma;font-size:14px;color:red;font-weight:bold;margin:0;padding-bottom:5px">${fetchedPropertyType || apartment_type}</span>
+                                                                                    <br><br>
                                                                                     <p style="font:bold 12px tahoma;color:#333333">Room Type</p>
                                                                                     <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${roomtype}</span>
                                                                                     <br>

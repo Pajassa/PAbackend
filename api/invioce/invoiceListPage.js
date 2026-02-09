@@ -70,13 +70,13 @@ export const getInvoiceById = async (req, res) => {
     const itemsResult = await client.query(itemsQuery, [id]);
 
     // Attach items to invoice object (mapping them to match frontend expectations if needed)
-    // Frontend expects: location, foodTariff, gstId, days, tariff, tax, total...
-    // DB has: location, description, hsn_sac_code, days, rate, tax_amount, total_amount
+    // Frontend expects: location, foodTariff, checkInDate, checkOutDate, days, tariff, tax, total...
+    // DB has: location, description, check_in_date, check_out_date, days, rate, tax_amount, total_amount
     const lineItems = itemsResult.rows.map(item => ({
       location: item.location,
       foodTariff: item.description,
-      gstId: item.hsn_sac_code,
-      cgstId: '',
+      checkInDate: item.check_in_date,
+      checkOutDate: item.check_out_date,
       days: item.days,
       tariff: item.rate,
       tax: item.tax_amount,
@@ -203,26 +203,18 @@ export const updateInvoice = async (req, res) => {
     const itemQuery = `
       INSERT INTO invoice_items (
         invoice_id, location, description,
-        hsn_sac_code, days, rate, tax_amount, total_amount
+        check_in_date, check_out_date, days, rate, tax_amount, total_amount
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     `;
 
     for (const item of items) {
       await client.query(itemQuery, [
         id,
         item.location,
-        item.foodTariff, // Mapping to description? createInvoice maps item.location to location, item.foodTariff to ... wait.
-        // CHECK createInvoice mapping:
-        // invoice_id, location, description, hsn_sac_code, ...
-        // VALUES ($1, $2, $3, $4...)
-        // $3 is description. createInvoice passes item.foodTariff as $3? Let me double check usage.
-        // Assuming createInvoice mapping:
-        // $2 -> item.location
-        // $3 -> item.foodTariff (seems odd for description but matching createInvoice)
-        // $4 -> item.gstId
         item.foodTariff,
-        item.gstId,
+        item.checkInDate || null,
+        item.checkOutDate || null,
         toNum(item.days),
         toNum(item.tariff),
         toNum(item.tax),
