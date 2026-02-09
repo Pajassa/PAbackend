@@ -18,9 +18,67 @@ export const getAllInvoices = async (req, res) => {
 
     const result = await client.query(query);
 
+    // Fetch line items for each invoice
+    const invoicesWithLineItems = await Promise.all(
+      result.rows.map(async (invoice) => {
+        const itemsQuery = `
+          SELECT 
+            location, 
+            description, 
+            check_in_date, 
+            check_out_date, 
+            days, 
+            rate, 
+            tax_amount, 
+            total_amount,
+            food_items_json
+          FROM invoice_items 
+          WHERE invoice_id = $1
+        `;
+        const itemsResult = await client.query(itemsQuery, [invoice.id]);
+
+        // Map line items with food items
+        const lineItems = itemsResult.rows.map(item => {
+          let foodItems = [];
+          if (item.food_items_json) {
+            foodItems = typeof item.food_items_json === 'string'
+              ? JSON.parse(item.food_items_json)
+              : item.food_items_json;
+          } else {
+            foodItems = [{
+              foodChargeType: 'Veg Lunch',
+              foodTariff: '',
+              foodQuantity: '1',
+              foodAmount: '',
+              foodTax: '',
+              foodSGST: '',
+              foodCGST: ''
+            }];
+          }
+
+          return {
+            location: item.location,
+            guestName: item.description || '',
+            checkInDate: item.check_in_date,
+            checkOutDate: item.check_out_date,
+            days: item.days,
+            tariff: item.rate,
+            tax: item.tax_amount,
+            total: item.total_amount,
+            foodItems
+          };
+        });
+
+        return {
+          ...invoice,
+          line_items: lineItems
+        };
+      })
+    );
+
     res.status(200).json({
       message: "Invoices fetched successfully",
-      data: result.rows
+      data: invoicesWithLineItems
     });
   } catch (error) {
     console.error("Error fetching invoices:", error);
@@ -70,21 +128,42 @@ export const getInvoiceById = async (req, res) => {
     const itemsResult = await client.query(itemsQuery, [id]);
 
     // Attach items to invoice object (mapping them to match frontend expectations if needed)
-    // Frontend expects: location, foodTariff, checkInDate, checkOutDate, days, tariff, tax, total...
-    // DB has: location, description, check_in_date, check_out_date, days, rate, tax_amount, total_amount
-    const lineItems = itemsResult.rows.map(item => ({
-      location: item.location,
-      foodTariff: item.description,
-      checkInDate: item.check_in_date,
-      checkOutDate: item.check_out_date,
-      days: item.days,
-      tariff: item.rate,
-      tax: item.tax_amount,
-      sgst: '',
-      cgst: '',
-      igst: '',
-      total: item.total_amount
-    }));
+    // Frontend expects: location, guestName, checkInDate, checkOutDate, days, tariff, tax, total, foodItems
+    // DB has: location, description, check_in_date, check_out_date, days, rate, tax_amount, total_amount, food_items_json
+    const lineItems = itemsResult.rows.map(item => {
+      // Parse foodItems from JSON column, or create default if not present (backward compatibility)
+      let foodItems = [];
+      if (item.food_items_json) {
+        foodItems = typeof item.food_items_json === 'string'
+          ? JSON.parse(item.food_items_json)
+          : item.food_items_json;
+      } else {
+        // Backward compatibility: create default food item
+        foodItems = [{
+          foodChargeType: 'Veg Lunch',
+          foodTariff: '',
+          foodQuantity: '1',
+          foodAmount: '',
+          foodTax: '',
+          foodSGST: '',
+          foodCGST: ''
+        }];
+      }
+
+      return {
+        location: item.location,
+        guestName: item.description || '', // description field stores guest name
+        checkInDate: item.check_in_date,
+        checkOutDate: item.check_out_date,
+        days: item.days,
+        tariff: item.rate,
+        tax: item.tax_amount,
+        sgst: '',
+        cgst: '',
+        total: item.total_amount,
+        foodItems
+      };
+    });
 
     // Attach lineItems to invoice for frontend
     invoice.line_items = lineItems;
@@ -229,6 +308,120 @@ export const updateInvoice = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Error updating invoice:", error);
     res.status(500).json({ error: "Failed to update invoice" });
+  } finally {
+    client.release();
+  }
+};
+
+// Download Invoice as PDF
+export const downloadInvoice = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+
+    // Fetch invoice details
+    const invoiceQuery = `
+      SELECT * FROM invoices WHERE id = $1
+    `;
+    const invoiceResult = await client.query(invoiceQuery, [id]);
+
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    const invoice = invoiceResult.rows[0];
+
+    // Try to add the column if it doesn't exist
+    try {
+      await client.query(`
+        ALTER TABLE invoice_items 
+        ADD COLUMN IF NOT EXISTS food_items_json JSONB
+      `);
+    } catch (err) {
+      console.log("Column might already exist or permission issue:", err.message);
+    }
+
+    // Fetch line items - try with food_items_json first
+    let itemsResult;
+    try {
+      const itemsQuery = `
+        SELECT 
+          location, 
+          description, 
+          check_in_date, 
+          check_out_date, 
+          days, 
+          rate, 
+          tax_amount, 
+          total_amount,
+          food_items_json
+        FROM invoice_items 
+        WHERE invoice_id = $1
+      `;
+      itemsResult = await client.query(itemsQuery, [id]);
+    } catch (err) {
+      // If food_items_json column doesn't exist, query without it
+      console.log("Querying without food_items_json column");
+      const itemsQuery = `
+        SELECT 
+          location, 
+          description, 
+          check_in_date, 
+          check_out_date, 
+          days, 
+          rate, 
+          tax_amount, 
+          total_amount
+        FROM invoice_items 
+        WHERE invoice_id = $1
+      `;
+      itemsResult = await client.query(itemsQuery, [id]);
+    }
+
+    // Map line items with food items
+    const lineItems = itemsResult.rows.map(item => {
+      let foodItems = [];
+      if (item.food_items_json) {
+        foodItems = typeof item.food_items_json === 'string'
+          ? JSON.parse(item.food_items_json)
+          : item.food_items_json;
+      } else {
+        // Default food item if column doesn't exist
+        foodItems = [{
+          foodChargeType: 'Veg Lunch',
+          foodTariff: '',
+          foodQuantity: '1',
+          foodAmount: '',
+          foodTax: '',
+          foodSGST: '',
+          foodCGST: ''
+        }];
+      }
+
+      return {
+        location: item.location,
+        guestName: item.description || '',
+        checkInDate: item.check_in_date,
+        checkOutDate: item.check_out_date,
+        days: item.days,
+        tariff: item.rate,
+        tax: item.tax_amount,
+        total: item.total_amount,
+        foodItems
+      };
+    });
+
+    // Generate PDF
+    const { generateInvoicePDF } = await import('./pdfGenerator.js');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Invoice_${invoice.invoice_number}.pdf`);
+
+    generateInvoicePDF(invoice, lineItems, res);
+
+  } catch (error) {
+    console.error("Error downloading invoice:", error);
+    res.status(500).json({ error: "Failed to download invoice" });
   } finally {
     client.release();
   }

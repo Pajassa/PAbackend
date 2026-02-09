@@ -13,7 +13,7 @@ import { ClientList, getProperty, checkRoomAvailability, saveReservation, getRes
 import { getAllReservations, deleteReservation } from "./api/ReservationManagement/ReservationListPage.js"
 import { sendEmail } from "./api/email/resend.js";
 import { createInvoice } from "./api/invioce/invioceform.js"
-import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice } from "./api/invioce/invoiceListPage.js"
+import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice, downloadInvoice } from "./api/invioce/invoiceListPage.js"
 
 const router = express.Router();
 
@@ -89,6 +89,7 @@ router.get("/getAllInvoices", getAllInvoices)
 router.delete("/deleteInvoice/:id", deleteInvoice)
 router.get("/getInvoiceById/:id", getInvoiceById)
 router.put("/updateInvoice/:id", updateInvoice)
+router.get("/downloadInvoice/:id", downloadInvoice)
 
 
 
