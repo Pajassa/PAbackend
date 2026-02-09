@@ -171,25 +171,35 @@ export const createInvoice = async (req, res) => {
     // ====================================
     // 3️⃣ INSERT LINE ITEMS
     // ====================================
+    // First, ensure the food_items_json column exists (for backward compatibility)
+    await client.query(`
+      ALTER TABLE invoice_items 
+      ADD COLUMN IF NOT EXISTS food_items_json JSONB;
+    `);
+
     const itemQuery = `
       INSERT INTO invoice_items (
         invoice_id, location, description,
-        check_in_date, check_out_date, days, rate, tax_amount, total_amount
+        check_in_date, check_out_date, days, rate, tax_amount, total_amount, food_items_json
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     `;
 
     for (const item of lineItems) {
+      // Convert foodItems array to JSON string for storage
+      const foodItemsJson = item.foodItems ? JSON.stringify(item.foodItems) : null;
+
       await client.query(itemQuery, [
         invoiceId,
         item.location,
-        item.foodTariff, // Note: description field mapping seems to be foodTariff here based on previous code
-        item.checkInDate || null,
-        item.checkOutDate || null,
+        item.guestName || '', // Store guest name in description field
+        formatDate(item.checkInDate) || null,
+        formatDate(item.checkOutDate) || null,
         toNum(item.days),
         toNum(item.tariff),
         toNum(item.tax),
-        toNum(item.total)
+        toNum(item.total),
+        foodItemsJson
       ]);
     }
 
