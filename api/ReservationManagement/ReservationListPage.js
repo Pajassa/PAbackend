@@ -1,4 +1,5 @@
 import pool from "../../client.js";
+import { sendCancellationEmail } from "../email/resend.js";
 
 export const getAllReservations = async (req, res) => {
   try {
@@ -81,22 +82,27 @@ export async function deleteReservation(req, res) {
       });
     }
 
-    // ✅ Delete dependent rows first
-    const deleteRoomBookingsQuery = `DELETE FROM room_bookings WHERE reservation_id = $1`;
-    await pool.query(deleteRoomBookingsQuery, [reservationId]);
-
-    const deleteAdditionalInfoQuery = `DELETE FROM reservation_additional_info WHERE reservation_id = $1`;
-    await pool.query(deleteAdditionalInfoQuery, [reservationId]);
-
     // ✅ Delete from main reservations table
     const deleteReservationQuery = `
     UPDATE reservations
-    SET status = 'Cancelled'
+    SET status = 'Cancelled',
+        modification_status = NULL,
+        modification_tag = NULL,
+        modification_tags = NULL
     WHERE id = $1
   `;
     await pool.query(deleteReservationQuery, [reservationId]);
 
     await pool.query("COMMIT"); // ✅ Commit transaction
+
+    // ✅ Send cancellation email AFTER successful commit
+    try {
+      const reservation = existsResult.rows[0];
+      await sendCancellationEmail(reservation);
+    } catch (emailError) {
+      console.error("Error sending cancellation email:", emailError);
+      // We don't fail the request here because the cancellation was successful
+    }
 
     return res.status(200).json({
       success: true,

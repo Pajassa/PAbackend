@@ -49,15 +49,38 @@ export const createInvoice = async (req, res) => {
     // ====================================
     // 0️⃣ CHECK FOR DUPLICATES
     // ====================================
-    if (apartmentBillNo) {
+    // ====================================
+    // 0️⃣ CHECK FOR DUPLICATES & AUTO-GENERATE SUFFIX
+    // ====================================
+    let finalInvoiceNumber = apartmentBillNo;
+
+    if (finalInvoiceNumber) {
       const checkQuery = `SELECT id FROM invoices WHERE invoice_number = $1`;
-      const checkResult = await client.query(checkQuery, [apartmentBillNo]);
+      const checkResult = await client.query(checkQuery, [finalInvoiceNumber]);
 
       if (checkResult.rows.length > 0) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({
-          error: `Invoice number ${apartmentBillNo} already exists.`
-        });
+        // Invoice number exists. Let's find a unique suffix.
+        let suffix = 1;
+        let foundUnique = false;
+
+        while (suffix <= 50) { // Limit attempts to prevent infinite loops
+          const candidateNumber = `${apartmentBillNo}-${suffix}`;
+          const suffixCheck = await client.query(checkQuery, [candidateNumber]);
+
+          if (suffixCheck.rows.length === 0) {
+            finalInvoiceNumber = candidateNumber;
+            foundUnique = true;
+            break;
+          }
+          suffix++;
+        }
+
+        if (!foundUnique) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            error: `Invoice number ${apartmentBillNo} already exists and could not auto-generate a unique suffix.`
+          });
+        }
       }
     }
 
@@ -97,7 +120,7 @@ export const createInvoice = async (req, res) => {
     `;
 
     const invoiceValues = [
-      apartmentBillNo,
+      finalInvoiceNumber,
       primaryReservationId,
       formatDate(date),
       invoiceTo,
@@ -151,9 +174,9 @@ export const createInvoice = async (req, res) => {
     const itemQuery = `
       INSERT INTO invoice_items (
         invoice_id, location, description,
-        hsn_sac_code, days, rate, tax_amount, total_amount
+        check_in_date, check_out_date, days, rate, tax_amount, total_amount
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     `;
 
     for (const item of lineItems) {
@@ -161,7 +184,8 @@ export const createInvoice = async (req, res) => {
         invoiceId,
         item.location,
         item.foodTariff, // Note: description field mapping seems to be foodTariff here based on previous code
-        item.gstId,
+        item.checkInDate || null,
+        item.checkOutDate || null,
         toNum(item.days),
         toNum(item.tariff),
         toNum(item.tax),
@@ -174,6 +198,7 @@ export const createInvoice = async (req, res) => {
     res.status(201).json({
       message: "Invoice created successfully",
       invoiceId,
+      invoiceNumber: finalInvoiceNumber,
       totals: { subTotal, taxTotal, grandTotal }
     });
 

@@ -185,22 +185,33 @@ export async function saveReservation(req, res) {
     const roomSelection = rawRoomSelection ? [...new Set(rawRoomSelection)] : [];
 
     // Generate reservation number
-    // Format: PAR-YY-MM-000001
+    // Generate reservation number
+    // Format: PAR-YY-MM-XXXX
     const dateObj = new Date();
     const yy = String(dateObj.getFullYear()).slice(-2);
     const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
 
-    // Check for the latest reservation number to increment
-    const latestQuery = `SELECT reservation_no FROM reservations WHERE reservation_no LIKE $1 ORDER BY reservation_no DESC LIMIT 1`;
-    const latestResult = await client.query(latestQuery, [`PAR-${yy}-${mm}-%`]);
+    // Lock table to prevent concurrent inserts and ensure sequential numbering
+    // SHARE ROW EXCLUSIVE mode protects against concurrent data changes (inserts/updates)
+    await client.query("LOCK TABLE reservations IN SHARE ROW EXCLUSIVE MODE");
+
+    // Calculate global sequence number
+    // Find the maximum sequence number from ALL reservations starting with PAR-
+    // regardless of year/month, to ensure global continuity.
+    const maxSeqQuery = `
+      SELECT MAX(CAST(substring(reservation_no FROM 'PAR-\\d{2}-\\d{2}-(\\d+)') AS INTEGER)) as max_seq 
+      FROM reservations 
+      WHERE reservation_no ~ '^PAR-\\d{2}-\\d{2}-\\d+$'
+    `;
+    const maxSeqResult = await client.query(maxSeqQuery);
 
     let nextNum = 1;
-    if (latestResult.rows.length > 0) {
-      const lastReservationNo = latestResult.rows[0].reservation_no;
-      const lastNum = parseInt(lastReservationNo.split('-').pop(), 10);
-      nextNum = lastNum + 1;
+    if (maxSeqResult.rows.length > 0 && maxSeqResult.rows[0].max_seq !== null) {
+      nextNum = maxSeqResult.rows[0].max_seq + 1;
     }
-    const reservationNo = `PAR-${yy}-${mm}-${String(nextNum).padStart(6, "0")}`;
+
+    // Ensure 4-digit sequence as per "XXXX" requirement
+    const reservationNo = `PAR-${yy}-${mm}-${String(nextNum).padStart(4, "0")}`;
 
     console.log("guestInfo received:", guestInfo);
 
