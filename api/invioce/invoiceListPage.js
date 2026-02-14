@@ -220,10 +220,34 @@ export const updateInvoice = async (req, res) => {
     const items = Array.isArray(lineItems) ? lineItems : [];
 
     items.forEach(item => {
-      subTotal += toNum(item.tariff);
-      taxTotal += toNum(item.tax);
+      const tariff = toNum(item.tariff);
+      const days = toNum(item.days);
+      const roomTax = toNum(item.tax);
+
+      subTotal += (tariff * days);
+      taxTotal += roomTax;
+
+      // Calculate food items for this row if they exist
+      if (item.foodItems && Array.isArray(item.foodItems)) {
+        item.foodItems.forEach(food => {
+          const foodAmount = toNum(food.foodAmount);
+          const foodTax = toNum(food.foodTax) || (toNum(food.foodSGST) + toNum(food.foodCGST));
+
+          subTotal += foodAmount;
+          taxTotal += foodTax;
+        });
+      }
+
       grandTotal += toNum(item.total);
     });
+
+    // Add extra services to subTotal and grandTotal
+    const sAmt = toNum(servicesAmount);
+    subTotal += sAmt;
+    grandTotal += sAmt;
+
+    // Add round off to grandTotal
+    grandTotal += toNum(roundOffValue);
 
     console.log("Calculated Totals:", { subTotal, taxTotal, grandTotal });
 
@@ -279,25 +303,29 @@ export const updateInvoice = async (req, res) => {
     // 3. Update Line Items (Delete all and Re-insert)
     await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [id]);
 
-    const itemQuery = `
-      INSERT INTO invoice_items (
-        invoice_id, location, description,
-        check_in_date, check_out_date, days, rate, tax_amount, total_amount
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-    `;
-
     for (const item of items) {
-      await client.query(itemQuery, [
+      // Convert foodItems array to JSON string for storage if it exists
+      const foodItemsJson = item.foodItems ? JSON.stringify(item.foodItems) : null;
+
+      const itemUpdateQuery = `
+        INSERT INTO invoice_items (
+          invoice_id, location, description,
+          check_in_date, check_out_date, days, rate, tax_amount, total_amount, food_items_json
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `;
+
+      await client.query(itemUpdateQuery, [
         id,
         item.location,
-        item.foodTariff,
-        item.checkInDate || null,
-        item.checkOutDate || null,
+        item.guestName || '', // Store guest name in description field
+        formatDate(item.checkInDate) || null,
+        formatDate(item.checkOutDate) || null,
         toNum(item.days),
         toNum(item.tariff),
         toNum(item.tax),
-        toNum(item.total)
+        toNum(item.total),
+        foodItemsJson
       ]);
     }
 
