@@ -92,10 +92,35 @@ export const createInvoice = async (req, res) => {
     let grandTotal = 0;
 
     lineItems.forEach(item => {
-      subTotal += toNum(item.tariff);
-      taxTotal += toNum(item.tax);
+      const tariff = toNum(item.tariff);
+      const days = toNum(item.days);
+      const roomTax = toNum(item.tax);
+      const roomTotal = (tariff * days) + roomTax;
+
+      subTotal += (tariff * days);
+      taxTotal += roomTax;
+
+      // Calculate food items for this row if they exist
+      if (item.foodItems && Array.isArray(item.foodItems)) {
+        item.foodItems.forEach(food => {
+          const foodAmount = toNum(food.foodAmount);
+          const foodTax = toNum(food.foodTax) || (toNum(food.foodSGST) + toNum(food.foodCGST));
+
+          subTotal += foodAmount;
+          taxTotal += foodTax;
+        });
+      }
+
       grandTotal += toNum(item.total);
     });
+
+    // Add extra services to subTotal and grandTotal
+    const sAmt = toNum(servicesAmount);
+    subTotal += sAmt;
+    grandTotal += sAmt;
+
+    // Add round off to grandTotal
+    grandTotal += toNum(roundOffValue);
 
     // ====================================
     // 2️⃣ INSERT INVOICE
