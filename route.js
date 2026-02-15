@@ -14,6 +14,7 @@ import { getAllReservations, deleteReservation } from "./api/ReservationManageme
 import { sendEmail } from "./api/email/resend.js";
 import { createInvoice } from "./api/invioce/invioceform.js"
 import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice, downloadInvoice } from "./api/invioce/invoiceListPage.js"
+import { sendInvoiceEmail } from "./api/invioce/invoiceEmail.js";
 
 const router = express.Router();
 
@@ -90,6 +91,7 @@ router.delete("/deleteInvoice/:id", deleteInvoice)
 router.get("/getInvoiceById/:id", getInvoiceById)
 router.put("/updateInvoice/:id", updateInvoice)
 router.get("/downloadInvoice/:id", downloadInvoice)
+router.post("/invoices/send-email", sendInvoiceEmail);
 
 
 
