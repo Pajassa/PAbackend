@@ -347,9 +347,16 @@ export const downloadInvoice = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch invoice details
+    // Fetch invoice details with client information
     const invoiceQuery = `
-      SELECT * FROM invoices WHERE id = $1
+      SELECT i.*, 
+             c.client_name, c.street_address, c.city as client_city, 
+             c.state as client_state, c.zip_code as client_zip, 
+             c.gst_no as client_gst, c.email_address as client_email
+      FROM invoices i
+      LEFT JOIN reservations r ON i.reservation_id = r.id
+      LEFT JOIN clients c ON r.client_id = c.id
+      WHERE i.id = $1
     `;
     const invoiceResult = await client.query(invoiceQuery, [id]);
 
