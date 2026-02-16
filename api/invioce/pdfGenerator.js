@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { numberToWords } from '../../helpers/numberToWords.js';
 
 export const generateInvoicePDF = (invoice, lineItems, res) => {
     const doc = new PDFDocument({
@@ -130,31 +131,30 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     doc.fontSize(9)
         .font('Helvetica-Bold')
         .fillColor('#000000')
-        .text('PricewaterhouseCoopers Private Limited', 30, yPos);
+        .text(invoice.client_name || invoice.invoice_to || 'Client Name Not Specified', 30, yPos);
 
     yPos += 16;
     doc.fontSize(8)
         .font('Helvetica')
-        .text('252, Veer Savarkar Marg, Shivaji Park,', 30, yPos);
+        .text(invoice.street_address || '', 30, yPos);
 
-    yPos += 11;
-    doc.text('Savarkar Smarak, Dadar west,', 30, yPos);
-
-    yPos += 11;
-    doc.text('Mumbai – 400028', 30, yPos);
+    if (invoice.client_city || invoice.client_state || invoice.client_zip) {
+        yPos += 11;
+        doc.text(`${invoice.client_city || ''} ${invoice.client_state || ''} ${invoice.client_zip || ''}`.trim(), 30, yPos);
+    }
 
     yPos += 16;
     doc.fontSize(8)
         .font('Helvetica-Bold')
         .text('GSTIN: ', 30, yPos, { continued: true })
         .font('Helvetica')
-        .text('27AABCP9181H1Z4');
+        .text(invoice.client_gst || invoice.gst_no || 'N/A');
 
     yPos += 12;
     doc.font('Helvetica-Bold')
         .text('Place of Supply: ', 30, yPos, { continued: true })
         .font('Helvetica')
-        .text('Maharashtra');
+        .text(invoice.state_for_billing || invoice.client_state || 'Maharashtra');
 
     // ===== RIGHT SECTION: INVOICE DETAILS =====
     const rightX = 330;
@@ -320,8 +320,9 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     const rowHeight = 20;
     let totalAmount = 0;
     let totalWithoutGST = 0;
-    let totalSGST = 0;
-    let totalCGST = 0;
+    let totalSGST_6 = 0, totalCGST_6 = 0;
+    let totalSGST_9 = 0, totalCGST_9 = 0;
+    let totalSGST_2_5 = 0, totalCGST_2_5 = 0;
 
     lineItems.forEach((item) => {
         // Main line item (room charges)
@@ -402,9 +403,29 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         });
 
         totalAmount += roomAmount;
-        totalWithoutGST += (roomAmount - roomTax);
-        totalSGST += roomSGST;
-        totalCGST += roomCGST;
+        const roomAmountWithoutTax = roomAmount - roomTax;
+        totalWithoutGST += roomAmountWithoutTax;
+
+        // Categorize room tax dynamically based on calculated rate
+        if (roomAmountWithoutTax > 0) {
+            const rate = (roomTax / roomAmountWithoutTax) * 100;
+            if (rate > 15) { // Likely 18% (9+9)
+                totalSGST_9 += roomSGST;
+                totalCGST_9 += roomCGST;
+            } else if (rate > 10) { // Likely 12% (6+6)
+                totalSGST_6 += roomSGST;
+                totalCGST_6 += roomCGST;
+            } else if (rate > 4) { // Likely 5% (2.5+2.5)
+                totalSGST_2_5 += roomSGST;
+                totalCGST_2_5 += roomCGST;
+            } else {
+                totalSGST_9 += roomSGST;
+                totalCGST_9 += roomCGST;
+            }
+        } else {
+            totalSGST_9 += roomSGST;
+            totalCGST_9 += roomCGST;
+        }
 
         yPos += rowHeight;
 
@@ -490,8 +511,8 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
                 totalAmount += foodAmount;
                 totalWithoutGST += (foodAmount - foodTax);
-                totalSGST += foodSGST;
-                totalCGST += foodCGST;
+                totalSGST_2_5 += foodSGST;
+                totalCGST_2_5 += foodCGST;
 
                 yPos += rowHeight;
             });
@@ -501,6 +522,31 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     // Total Amount Row (spans columns up to Amount, then shows SGST and CGST)
     const totalRowHeight = 20;
     const totalLabelWidth = colWidths.guest + colWidths.checkIn + colWidths.checkOut + colWidths.nights + colWidths.hsn + colWidths.tariff;
+
+    drawCell(tableX, yPos, totalLabelWidth, totalRowHeight, 'Total Amount', {
+        fontSize: 9,
+        bold: true,
+        align: 'center',
+        valign: 'middle',
+        paddingLeft: 3,
+        paddingRight: 3
+    });
+    drawCell(colX.amount, yPos, colWidths.amount, totalRowHeight, formatCurrency(totalAmount), {
+        fontSize: 9,
+        bold: true,
+        align: 'center',
+        paddingLeft: 2,
+        paddingRight: 2,
+        valign: 'middle'
+    });
+    drawCell(colX.tax, yPos, colWidths.tax, totalRowHeight, '', {
+        fontSize: 9,
+        bold: true,
+        align: 'center',
+        valign: 'middle'
+    });
+    const totalSGST = totalSGST_6 + totalSGST_9 + totalSGST_2_5;
+    const totalCGST = totalCGST_6 + totalCGST_9 + totalCGST_2_5;
 
     drawCell(tableX, yPos, totalLabelWidth, totalRowHeight, 'Total Amount', {
         fontSize: 9,
@@ -546,17 +592,17 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     const summaryLabelWidth = tableWidth - colWidths.cgst;
 
     const summaryRows = [
-        { label: 'Total Amount without GST', value: formatCurrency(totalWithoutGST) },
-        { label: 'SGST @ 6%', value: formatCurrency(totalSGST) },
-        { label: 'CGST @ 6%', value: formatCurrency(totalCGST) },
-        { label: 'SGST @ 9%', value: formatCurrency(0) },
-        { label: 'CGST @ 9%', value: formatCurrency(0) },
-        { label: 'SGST @ 2.5%', value: formatCurrency(0) },
-        { label: 'CGST @ 2.5%', value: formatCurrency(0) },
+        { label: 'Total Amount without GST', value: formatCurrency(invoice.sub_total || totalWithoutGST) },
+        { label: 'SGST @ 6%', value: formatCurrency(totalSGST_6) },
+        { label: 'CGST @ 6%', value: formatCurrency(totalCGST_6) },
+        { label: 'SGST @ 9%', value: formatCurrency(totalSGST_9) },
+        { label: 'CGST @ 9%', value: formatCurrency(totalCGST_9) },
+        { label: 'SGST @ 2.5%', value: formatCurrency(totalSGST_2_5) },
+        { label: 'CGST @ 2.5%', value: formatCurrency(totalCGST_2_5) },
         { label: 'Total Amount with GST (Round Off)', value: formatCurrency(invoice.grand_total || totalAmount), bold: true },
         { label: 'Payment received for Lunch & Laundry', value: formatCurrency(0) },
         { label: 'Amount', value: formatCurrency(invoice.grand_total || totalAmount) },
-        { label: '2 % Bank Charges', value: formatCurrency(0) },
+        { label: invoice.services_name || '2 % Bank Charges', value: formatCurrency(invoice.services_amount || 0) },
         { label: 'Total Amount', value: formatCurrency(invoice.grand_total || totalAmount), bold: true }
     ];
 
@@ -581,7 +627,8 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     });
 
     // Amount in Words (full width)
-    drawCell(tableX, yPos, tableWidth, totalRowHeight, 'Amount (in Words) Eighty Six Thousand, Nine Hundred & Twelve Rupees Only', {
+    const amountInWords = numberToWords(invoice.grand_total || totalAmount);
+    drawCell(tableX, yPos, tableWidth, totalRowHeight, `Amount (in Words) ${amountInWords}`, {
         fontSize: 8,
         bold: true,
         align: 'center',
