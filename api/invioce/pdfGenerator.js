@@ -1,5 +1,10 @@
 import PDFDocument from 'pdfkit';
 import { numberToWords } from '../../helpers/numberToWords.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const generateInvoicePDF = (invoice, lineItems, res) => {
     const doc = new PDFDocument({
@@ -7,6 +12,13 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         margin: 20,
         bufferPages: true
     });
+
+    // Register Fonts (Roboto supports Indian Rupee Symbol ₹)
+    const robotoRegularPath = path.join(__dirname, '../../fonts/Roboto-Regular.ttf');
+    const robotoBoldPath = path.join(__dirname, '../../fonts/Roboto-Bold.ttf');
+
+    doc.registerFont('Roboto-Regular', robotoRegularPath);
+    doc.registerFont('Roboto-Bold', robotoBoldPath);
 
     // Pipe PDF to response
     doc.pipe(res);
@@ -19,7 +31,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     // Helper function to format currency
     const formatCurrency = (amount) => {
         const num = parseFloat(amount || 0);
-        return `Rs. ${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return `₹ ${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
     // Helper function to format date
@@ -39,8 +51,8 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
             fontSize = 8,
             bold = false,
             fillColor = null,
-            paddingLeft = 3,
-            paddingRight = 3,
+            paddingLeft = 4,
+            paddingRight = 4,
             valign = 'middle'
         } = options;
 
@@ -51,42 +63,31 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
             doc.rect(x, y, width, height).stroke('#000000');
         }
 
-        // Set font
+        // Set font and get line height
         doc.fontSize(fontSize)
-            .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+            .font(bold ? 'Roboto-Bold' : 'Roboto-Regular')
             .fillColor('#000000');
 
-        // Calculate vertical position based on valign
+        const textWidth = width - paddingLeft - paddingRight;
+        const actualTextHeight = doc.heightOfString(text, { width: textWidth, lineBreak: true });
+
+        // Calculate vertical position based on valign and actual text height
         let textY;
         if (valign === 'top') {
-            textY = y + 3;
+            textY = y + 4;
         } else if (valign === 'bottom') {
-            textY = y + height - fontSize - 3;
+            textY = y + height - actualTextHeight - 4;
         } else { // middle
-            textY = y + (height - fontSize) / 2 + 1;
+            textY = y + (height - actualTextHeight) / 2 + 1;
         }
 
-        // Draw text with proper alignment
-        const textWidth = width - paddingLeft - paddingRight;
-
-        if (align === 'center') {
-            doc.text(text, x + paddingLeft, textY, {
-                width: textWidth,
-                align: 'center',
-                lineBreak: false
-            });
-        } else if (align === 'right') {
-            doc.text(text, x + paddingLeft, textY, {
-                width: textWidth,
-                align: 'right',
-                lineBreak: false
-            });
-        } else {
-            doc.text(text, x + paddingLeft, textY, {
-                width: textWidth,
-                lineBreak: false
-            });
-        }
+        // Draw text with proper alignment and wrapping
+        doc.text(text, x + paddingLeft, textY, {
+            width: textWidth,
+            align: align,
+            lineBreak: true,
+            lineGap: 1
+        });
     };
 
     let yPos = 20;
@@ -106,7 +107,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         console.log('Logo not found, using text fallback');
         // Fallback to text if logo not found
         doc.fontSize(11)
-            .font('Helvetica-Bold')
+            .font('Roboto-Bold')
             .fillColor('#FF9800')
             .text('PAJASA', 500, 25, { width: 75, align: 'right' });
 
@@ -115,27 +116,27 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
             .text('APARTMENTS', 500, 38, { width: 75, align: 'right' });
 
         doc.fontSize(7)
-            .font('Helvetica')
+            .font('Roboto-Regular')
             .text('Extended Stay Partner', 500, 50, { width: 75, align: 'right' });
     }
 
     // ===== TAX INVOICE TITLE =====
     yPos = 90;
     doc.fontSize(16)
-        .font('Helvetica-Bold')
+        .font('Roboto-Bold')
         .fillColor('#000000')
         .text('TAX INVOICE', 0, yPos, { align: 'center', width: pageWidth });
 
     // ===== LEFT SECTION: BILLED TO =====
     yPos = 130;
     doc.fontSize(9)
-        .font('Helvetica-Bold')
+        .font('Roboto-Bold')
         .fillColor('#000000')
         .text(invoice.client_name || invoice.invoice_to || 'Client Name Not Specified', 30, yPos);
 
     yPos += 16;
     doc.fontSize(8)
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text(invoice.street_address || '', 30, yPos);
 
     if (invoice.client_city || invoice.client_state || invoice.client_zip) {
@@ -145,15 +146,15 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
     yPos += 16;
     doc.fontSize(8)
-        .font('Helvetica-Bold')
+        .font('Roboto-Bold')
         .text('GSTIN: ', 30, yPos, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text(invoice.client_gst || invoice.gst_no || 'N/A');
 
     yPos += 12;
-    doc.font('Helvetica-Bold')
+    doc.font('Roboto-Bold')
         .text('Place of Supply: ', 30, yPos, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text(invoice.state_for_billing || invoice.client_state || 'Maharashtra');
 
     // ===== RIGHT SECTION: INVOICE DETAILS =====
@@ -161,39 +162,39 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     let rightY = 130;
 
     doc.fontSize(8)
-        .font('Helvetica-Bold')
+        .font('Roboto-Bold')
         .text('Invoice No.: ', rightX, rightY, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text(invoice.invoice_number || 'PAMH24250243');
 
     rightY += 12;
-    doc.font('Helvetica-Bold')
+    doc.font('Roboto-Bold')
         .text('Invoice Date: ', rightX, rightY, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text(formatDate(invoice.invoice_date) || '07th March 2025');
 
     rightY += 12;
-    doc.font('Helvetica-Bold')
+    doc.font('Roboto-Bold')
         .text('Pajasa HSN Code: ', rightX, rightY, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text('996311');
 
     rightY += 12;
-    doc.font('Helvetica-Bold')
+    doc.font('Roboto-Bold')
         .text('Pajasa GSTIN: ', rightX, rightY, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text('27AAHCP7561R1ZH');
 
     rightY += 12;
-    doc.font('Helvetica-Bold')
+    doc.font('Roboto-Bold')
         .text('Place of Supply State Code: ', rightX, rightY, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text('27');
 
     rightY += 12;
-    doc.font('Helvetica-Bold')
+    doc.font('Roboto-Bold')
         .text('Udyam Registration No: ', rightX, rightY, { continued: true })
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text('MH-19-0215452');
 
     // ===== MAIN TABLE =====
@@ -320,81 +321,113 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     const rowHeight = 20;
     let totalAmount = 0;
     let totalWithoutGST = 0;
-    let totalSGST_6 = 0, totalCGST_6 = 0;
-    let totalSGST_9 = 0, totalCGST_9 = 0;
-    let totalSGST_2_5 = 0, totalCGST_2_5 = 0;
+
+    // Dynamic GST grouping: { rate: { sgst: value, cgst: value } }
+    const gstGroups = {};
+
+    // Check if food charges should be displayed
+    const showFoodCharge = invoice.display_food_charge !== false && invoice.display_food_charge !== 'No';
 
     lineItems.forEach((item) => {
+        // Identification criteria for food charge rows
+        const foodKeywords = ["Lunch", "Dinner", "Breakfast", "Food"];
+        const guestName = (item.guestName || '').toLowerCase();
+        const isFoodByKeyword = foodKeywords.some(keyword => guestName.includes(keyword.toLowerCase()));
+
+        // Check if current row is a food charge row
+        const isFoodChargeRow = isFoodByKeyword || item.hsnCode === '999711' || item.foodCharge === true;
+
+        // Skip main item if it's a food charge and we're hiding food charges
+        if (!showFoodCharge && isFoodChargeRow) {
+            return;
+        }
+
         // Main line item (room charges)
         const roomAmount = parseFloat(item.total || 0);
         const roomTax = parseFloat(item.tax || 0);
         const roomSGST = roomTax / 2;
         const roomCGST = roomTax / 2;
 
-        drawCell(colX.guest, yPos, colWidths.guest, rowHeight, item.guestName || '', {
+        const roomBaseAmount = roomAmount - roomTax;
+        const actualRoomRate = roomBaseAmount > 0 ? (roomTax / roomBaseAmount) * 100 : 0;
+        const intendedTaxRate = Math.round(actualRoomRate);
+        const intendedHalfRate = intendedTaxRate / 2;
+
+        // Corrected SGST/CGST based on intended percentage
+        const correctedRoomSGST = Math.round(roomBaseAmount * intendedHalfRate) / 100;
+        const correctedRoomCGST = Math.round(roomBaseAmount * intendedHalfRate) / 100;
+        const correctedRoomTax = correctedRoomSGST + correctedRoomCGST;
+
+        // Calculate dynamic row height for room entry (primarily based on Guest Name)
+        doc.fontSize(8);
+        const guestNamePadding = 8;
+        const guestNameHeight = doc.heightOfString(item.guestName || '', { width: colWidths.guest - guestNamePadding, lineBreak: true });
+        const currentRowHeight = Math.max(20, guestNameHeight + 10); // Minimum 20px, plus 10px total vertical padding
+
+        drawCell(colX.guest, yPos, colWidths.guest, currentRowHeight, item.guestName || '', {
             fontSize: 8,
             align: 'left',
-            paddingLeft: 3,
+            paddingLeft: 4,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.checkIn, yPos, colWidths.checkIn, rowHeight, formatDate(item.checkInDate), {
+        drawCell(colX.checkIn, yPos, colWidths.checkIn, currentRowHeight, formatDate(item.checkInDate), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.checkOut, yPos, colWidths.checkOut, rowHeight, formatDate(item.checkOutDate), {
+        drawCell(colX.checkOut, yPos, colWidths.checkOut, currentRowHeight, formatDate(item.checkOutDate), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.nights, yPos, colWidths.nights, rowHeight, String(item.days || '0'), {
+        drawCell(colX.nights, yPos, colWidths.nights, currentRowHeight, String(item.days || '0'), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.hsn, yPos, colWidths.hsn, rowHeight, '996311', {
+        drawCell(colX.hsn, yPos, colWidths.hsn, currentRowHeight, '996311', {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.tariff, yPos, colWidths.tariff, rowHeight, formatCurrency(item.tariff), {
+        drawCell(colX.tariff, yPos, colWidths.tariff, currentRowHeight, formatCurrency(item.tariff), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.amount, yPos, colWidths.amount, rowHeight, formatCurrency(roomAmount), {
+        drawCell(colX.amount, yPos, colWidths.amount, currentRowHeight, formatCurrency(roomBaseAmount), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.tax, yPos, colWidths.tax, rowHeight, String(roomTax.toFixed(0)), {
+        drawCell(colX.tax, yPos, colWidths.tax, currentRowHeight, intendedTaxRate > 0 ? `${intendedTaxRate}%` : '0%', {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.sgst, yPos, colWidths.sgst, rowHeight, formatCurrency(roomSGST), {
+        drawCell(colX.sgst, yPos, colWidths.sgst, currentRowHeight, formatCurrency(correctedRoomSGST), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
             paddingRight: 2,
             valign: 'middle'
         });
-        drawCell(colX.cgst, yPos, colWidths.cgst, rowHeight, formatCurrency(roomCGST), {
+        drawCell(colX.cgst, yPos, colWidths.cgst, currentRowHeight, formatCurrency(correctedRoomCGST), {
             fontSize: 8,
             align: 'center',
             paddingLeft: 2,
@@ -402,106 +435,111 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
             valign: 'middle'
         });
 
-        totalAmount += roomAmount;
-        const roomAmountWithoutTax = roomAmount - roomTax;
-        totalWithoutGST += roomAmountWithoutTax;
+        totalAmount += (roomBaseAmount + correctedRoomTax);
+        totalWithoutGST += roomBaseAmount;
 
         // Categorize room tax dynamically based on calculated rate
-        if (roomAmountWithoutTax > 0) {
-            const rate = (roomTax / roomAmountWithoutTax) * 100;
-            if (rate > 15) { // Likely 18% (9+9)
-                totalSGST_9 += roomSGST;
-                totalCGST_9 += roomCGST;
-            } else if (rate > 10) { // Likely 12% (6+6)
-                totalSGST_6 += roomSGST;
-                totalCGST_6 += roomCGST;
-            } else if (rate > 4) { // Likely 5% (2.5+2.5)
-                totalSGST_2_5 += roomSGST;
-                totalCGST_2_5 += roomCGST;
-            } else {
-                totalSGST_9 += roomSGST;
-                totalCGST_9 += roomCGST;
+        if (roomBaseAmount > 0 && correctedRoomTax > 0) {
+            const halfRateStr = intendedHalfRate.toString();
+
+            if (!gstGroups[halfRateStr]) {
+                gstGroups[halfRateStr] = { sgst: 0, cgst: 0 };
             }
-        } else {
-            totalSGST_9 += roomSGST;
-            totalCGST_9 += roomCGST;
+            gstGroups[halfRateStr].sgst += correctedRoomSGST;
+            gstGroups[halfRateStr].cgst += correctedRoomCGST;
         }
 
-        yPos += rowHeight;
+        yPos += currentRowHeight;
 
         // Food items
-        if (item.foodItems && item.foodItems.length > 0) {
+        if (showFoodCharge && item.foodItems && item.foodItems.length > 0) {
             item.foodItems.forEach((food) => {
                 const foodAmount = parseFloat(food.foodAmount || 0);
                 const foodTax = parseFloat(food.foodTax || 0);
                 const foodSGST = parseFloat(food.foodSGST || 0);
                 const foodCGST = parseFloat(food.foodCGST || 0);
                 const foodQty = food.foodQuantity || '1';
+                const foodBaseAmount = foodAmount - foodTax;
 
-                drawCell(colX.guest, yPos, colWidths.guest, rowHeight, food.foodChargeType || 'Food', {
+                // Calculate dynamic row height for food entry
+                const foodLabelPadding = 8;
+                const foodLabelHeight = doc.heightOfString(food.foodChargeType || 'Food', { width: colWidths.guest - foodLabelPadding, lineBreak: true });
+                const currentFoodRowHeight = Math.max(20, foodLabelHeight + 10);
+
+                const actualFoodRate = foodBaseAmount > 0 ? (foodTax / foodBaseAmount) * 100 : 0;
+
+                // Determine intended rate (allow override from data if exists)
+                const intendedTaxRate = food.foodTaxPercentage ? parseFloat(food.foodTaxPercentage) : Math.round(actualFoodRate);
+                const intendedHalfRate = intendedTaxRate / 2;
+
+                const correctedFoodSGST = Math.round(foodBaseAmount * intendedHalfRate) / 100;
+                const correctedFoodCGST = Math.round(foodBaseAmount * intendedHalfRate) / 100;
+                const correctedFoodTax = correctedFoodSGST + correctedFoodCGST;
+
+                drawCell(colX.guest, yPos, colWidths.guest, currentFoodRowHeight, food.foodChargeType || 'Food', {
                     fontSize: 8,
                     align: 'left',
-                    paddingLeft: 3,
+                    paddingLeft: 4,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.checkIn, yPos, colWidths.checkIn, rowHeight, formatDate(item.checkInDate), {
+                drawCell(colX.checkIn, yPos, colWidths.checkIn, currentFoodRowHeight, formatDate(item.checkInDate), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.checkOut, yPos, colWidths.checkOut, rowHeight, formatDate(item.checkOutDate), {
+                drawCell(colX.checkOut, yPos, colWidths.checkOut, currentFoodRowHeight, formatDate(item.checkOutDate), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.nights, yPos, colWidths.nights, rowHeight, String(foodQty), {
+                drawCell(colX.nights, yPos, colWidths.nights, currentFoodRowHeight, String(foodQty), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.hsn, yPos, colWidths.hsn, rowHeight, '999711', {
+                drawCell(colX.hsn, yPos, colWidths.hsn, currentFoodRowHeight, '999711', {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.tariff, yPos, colWidths.tariff, rowHeight, formatCurrency(food.foodTariff), {
+                drawCell(colX.tariff, yPos, colWidths.tariff, currentFoodRowHeight, formatCurrency(food.foodTariff), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.amount, yPos, colWidths.amount, rowHeight, formatCurrency(foodAmount), {
+                drawCell(colX.amount, yPos, colWidths.amount, currentFoodRowHeight, formatCurrency(foodBaseAmount), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.tax, yPos, colWidths.tax, rowHeight, String(foodTax.toFixed(0)), {
+                drawCell(colX.tax, yPos, colWidths.tax, currentFoodRowHeight, intendedTaxRate > 0 ? `${intendedTaxRate}%` : '0%', {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.sgst, yPos, colWidths.sgst, rowHeight, formatCurrency(foodSGST), {
+                drawCell(colX.sgst, yPos, colWidths.sgst, currentFoodRowHeight, formatCurrency(correctedFoodSGST), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
                     paddingRight: 2,
                     valign: 'middle'
                 });
-                drawCell(colX.cgst, yPos, colWidths.cgst, rowHeight, formatCurrency(foodCGST), {
+                drawCell(colX.cgst, yPos, colWidths.cgst, currentFoodRowHeight, formatCurrency(correctedFoodCGST), {
                     fontSize: 8,
                     align: 'center',
                     paddingLeft: 2,
@@ -509,12 +547,20 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
                     valign: 'middle'
                 });
 
-                totalAmount += foodAmount;
-                totalWithoutGST += (foodAmount - foodTax);
-                totalSGST_2_5 += foodSGST;
-                totalCGST_2_5 += foodCGST;
+                totalAmount += (foodBaseAmount + correctedFoodTax);
+                totalWithoutGST += foodBaseAmount;
 
-                yPos += rowHeight;
+                if (foodBaseAmount > 0 && correctedFoodTax > 0) {
+                    const halfRateStr = intendedHalfRate.toString();
+
+                    if (!gstGroups[halfRateStr]) {
+                        gstGroups[halfRateStr] = { sgst: 0, cgst: 0 };
+                    }
+                    gstGroups[halfRateStr].sgst += correctedFoodSGST;
+                    gstGroups[halfRateStr].cgst += correctedFoodCGST;
+                }
+
+                yPos += currentFoodRowHeight;
             });
         }
     });
@@ -523,30 +569,8 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     const totalRowHeight = 20;
     const totalLabelWidth = colWidths.guest + colWidths.checkIn + colWidths.checkOut + colWidths.nights + colWidths.hsn + colWidths.tariff;
 
-    drawCell(tableX, yPos, totalLabelWidth, totalRowHeight, 'Total Amount', {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        valign: 'middle',
-        paddingLeft: 3,
-        paddingRight: 3
-    });
-    drawCell(colX.amount, yPos, colWidths.amount, totalRowHeight, formatCurrency(totalAmount), {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        paddingLeft: 2,
-        paddingRight: 2,
-        valign: 'middle'
-    });
-    drawCell(colX.tax, yPos, colWidths.tax, totalRowHeight, '', {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        valign: 'middle'
-    });
-    const totalSGST = totalSGST_6 + totalSGST_9 + totalSGST_2_5;
-    const totalCGST = totalCGST_6 + totalCGST_9 + totalCGST_2_5;
+    const totalSummarySGST = Object.values(gstGroups).reduce((acc, curr) => acc + curr.sgst, 0);
+    const totalSummaryCGST = Object.values(gstGroups).reduce((acc, curr) => acc + curr.cgst, 0);
 
     drawCell(tableX, yPos, totalLabelWidth, totalRowHeight, 'Total Amount', {
         fontSize: 9,
@@ -556,7 +580,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         paddingLeft: 3,
         paddingRight: 3
     });
-    drawCell(colX.amount, yPos, colWidths.amount, totalRowHeight, formatCurrency(totalAmount), {
+    drawCell(colX.amount, yPos, colWidths.amount, totalRowHeight, formatCurrency(totalWithoutGST), {
         fontSize: 9,
         bold: true,
         align: 'center',
@@ -570,7 +594,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         align: 'center',
         valign: 'middle'
     });
-    drawCell(colX.sgst, yPos, colWidths.sgst, totalRowHeight, formatCurrency(totalSGST), {
+    drawCell(colX.sgst, yPos, colWidths.sgst, totalRowHeight, formatCurrency(totalSummarySGST), {
         fontSize: 9,
         bold: true,
         align: 'center',
@@ -578,7 +602,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         paddingRight: 2,
         valign: 'middle'
     });
-    drawCell(colX.cgst, yPos, colWidths.cgst, totalRowHeight, formatCurrency(totalCGST), {
+    drawCell(colX.cgst, yPos, colWidths.cgst, totalRowHeight, formatCurrency(totalSummaryCGST), {
         fontSize: 9,
         bold: true,
         align: 'center',
@@ -591,31 +615,58 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     // Summary rows - spanning from start to Tax column, value in CGST column
     const summaryLabelWidth = tableWidth - colWidths.cgst;
 
+    // Recalculate Final totals
+    const servicesAmount = parseFloat(invoice.services_amount || 0);
+    const roundOffValue = parseFloat(invoice.round_off_value || 0);
+
+    // Use calculated totals to ensure consistency, especially when filtering
+    const finalSubTotal = (!showFoodCharge) ? totalWithoutGST : (invoice.sub_total || totalWithoutGST);
+    const calculatedGrandTotal = totalAmount + servicesAmount + roundOffValue;
+    const finalGrandTotal = (!showFoodCharge) ? calculatedGrandTotal : (invoice.grand_total || calculatedGrandTotal);
+
     const summaryRows = [
-        { label: 'Total Amount without GST', value: formatCurrency(invoice.sub_total || totalWithoutGST) },
-        { label: 'SGST @ 6%', value: formatCurrency(totalSGST_6) },
-        { label: 'CGST @ 6%', value: formatCurrency(totalCGST_6) },
-        { label: 'SGST @ 9%', value: formatCurrency(totalSGST_9) },
-        { label: 'CGST @ 9%', value: formatCurrency(totalCGST_9) },
-        { label: 'SGST @ 2.5%', value: formatCurrency(totalSGST_2_5) },
-        { label: 'CGST @ 2.5%', value: formatCurrency(totalCGST_2_5) },
-        { label: 'Total Amount with GST (Round Off)', value: formatCurrency(invoice.grand_total || totalAmount), bold: true },
-        { label: 'Payment received for Lunch & Laundry', value: formatCurrency(0) },
-        { label: 'Amount', value: formatCurrency(invoice.grand_total || totalAmount) },
-        { label: invoice.services_name || '2 % Bank Charges', value: formatCurrency(invoice.services_amount || 0) },
-        { label: 'Total Amount', value: formatCurrency(invoice.grand_total || totalAmount), bold: true }
+        { label: 'Total Amount without GST', value: formatCurrency(finalSubTotal) }
     ];
 
+    // Add dynamic GST rows from grouping
+    const sortedRates = Object.keys(gstGroups).sort((a, b) => parseFloat(a) - parseFloat(b));
+    let totalSGST = 0;
+    let totalCGST = 0;
+
+    sortedRates.forEach(rate => {
+        const { sgst, cgst } = gstGroups[rate];
+        totalSGST += sgst;
+        totalCGST += cgst;
+
+        // Convert "2.5" back to number for display, remove .0 if integer
+        const displayRate = parseFloat(rate);
+
+        summaryRows.push({ label: `SGST @ ${displayRate}%`, value: formatCurrency(sgst) });
+        summaryRows.push({ label: `CGST @ ${displayRate}%`, value: formatCurrency(cgst) });
+    });
+
+    summaryRows.push(
+        { label: 'Amount', value: formatCurrency(totalWithoutGST) },
+        { label: invoice.services_name || '2 % Bank Charges', value: formatCurrency(servicesAmount) },
+        { label: 'Total Amount', value: formatCurrency(totalWithoutGST + servicesAmount), bold: true },
+        { label: 'Total Amount with GST (Round Off)', value: formatCurrency(finalGrandTotal), bold: true },
+    );
+
     summaryRows.forEach(row => {
-        drawCell(tableX, yPos, summaryLabelWidth, totalRowHeight, row.label, {
+        // Calculate dynamic height for summary rows (just in case they wrap)
+        const labelPadding = 6;
+        const labelHeight = doc.heightOfString(row.label, { width: summaryLabelWidth - labelPadding });
+        const currentSummaryRowHeight = Math.max(20, labelHeight + 8);
+
+        drawCell(tableX, yPos, summaryLabelWidth, currentSummaryRowHeight, row.label, {
             fontSize: 8,
             bold: true,  // All labels are now bold
             align: 'center',
             valign: 'middle',
-            paddingLeft: 3,
-            paddingRight: 3
+            paddingLeft: 4,
+            paddingRight: 4
         });
-        drawCell(colX.cgst, yPos, colWidths.cgst, totalRowHeight, row.value, {
+        drawCell(colX.cgst, yPos, colWidths.cgst, currentSummaryRowHeight, row.value, {
             fontSize: 8,
             bold: row.bold || false,
             align: 'center',
@@ -623,24 +674,29 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
             paddingRight: 2,
             valign: 'middle'
         });
-        yPos += totalRowHeight;
+        yPos += currentSummaryRowHeight;
     });
 
     // Amount in Words (full width)
-    const amountInWords = numberToWords(invoice.grand_total || totalAmount);
-    drawCell(tableX, yPos, tableWidth, totalRowHeight, `Amount (in Words) ${amountInWords}`, {
+    const amountInWords = numberToWords(finalGrandTotal);
+    const wordsText = `Amount (in Words) ${amountInWords}`;
+    const wordsPadding = 10;
+    const wordsHeight = doc.heightOfString(wordsText, { width: tableWidth - wordsPadding });
+    const dynamicWordsHeight = Math.max(20, wordsHeight + 8);
+
+    drawCell(tableX, yPos, tableWidth, dynamicWordsHeight, wordsText, {
         fontSize: 8,
         bold: true,
         align: 'center',
         valign: 'middle',
-        paddingLeft: 3,
-        paddingRight: 3
+        paddingLeft: 4,
+        paddingRight: 4
     });
-    yPos += totalRowHeight + 12;
+    yPos += dynamicWordsHeight + 12;
 
     // ===== FOOTER NOTES =====
     doc.fontSize(7)
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .fillColor('#000000')
         .text('1. Please issue cheque in the name of PAJASA STAY SOLUTIONS PVT. LTD.', 25, yPos);
 
@@ -661,7 +717,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
     // Authorized Signatory (with seal placeholder)
     doc.fontSize(8)
-        .font('Helvetica-Bold')
+        .font('Roboto-Bold')
         .text('Authorized Signatory', 480, yPos - 18);
 
     // Draw seal circle placeholder
@@ -676,12 +732,12 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
     // Footer text
     doc.fontSize(9)
-        .font('Helvetica-Bold')
+        .font('Roboto-Bold')
         .fillColor('#FFFFFF')
         .text('PAJASA STAY SOLUTIONS PVT LTD', 25, footerY + 8);
 
     doc.fontSize(6.5)
-        .font('Helvetica')
+        .font('Roboto-Regular')
         .text('Corporate Office : HO 83 C20, We Work Enam Sambhavnath Block Road BKC, Bandra Kurla Complex, Mumbai, Maharashtra, 400051', 25, footerY + 23, { width: 545 });
 
     doc.text('Connect Us : +91 7738777602 | info@pajasaapartments.com | www.pajasaapartments.com', 25, footerY + 38);
