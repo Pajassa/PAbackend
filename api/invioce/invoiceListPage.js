@@ -113,8 +113,17 @@ export const getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch invoice details
-    const invoiceQuery = 'SELECT * FROM invoices WHERE id = $1';
+    // Fetch invoice details with joined client information
+    const invoiceQuery = `
+      SELECT i.*, 
+             r.client_id,
+             c.client_name, c.street_address, c.street_address_2, 
+             c.city, c.state, c.zip_code, c.email_address
+      FROM invoices i
+      LEFT JOIN reservations r ON i.reservation_id = r.id
+      LEFT JOIN clients c ON r.client_id = c.id
+      WHERE i.id = $1
+    `;
     const invoiceResult = await client.query(invoiceQuery, [id]);
 
     if (invoiceResult.rowCount === 0) {
@@ -205,11 +214,11 @@ export const updateInvoice = async (req, res) => {
       stateForBilling, displayFoodCharge, extraServices, servicesName, servicesAmount,
       date, pan, roundOffValue, guestNameWidth, displayCurrencyConversion, status,
       paymentMethod, pdfPassword, invoiceTo, pageBreak, displayTaxes, apartmentBillNo,
-      currency, conversionRate, reservationId, lineItems
+      currency, conversionRate, reservationIds, lineItems
     } = req.body;
 
     console.log("updateInvoice Body:", {
-      id, date, invoiceTo, status, lineItemsCount: lineItems?.length
+      id, date, invoiceTo, status, lineItemsCount: lineItems?.length, reservationIds
     });
 
     // 1. Calculate Totals
@@ -251,22 +260,24 @@ export const updateInvoice = async (req, res) => {
 
     console.log("Calculated Totals:", { subTotal, taxTotal, grandTotal });
 
+    // Primary reservation ID for the main table
+    const primaryReservationId = reservationIds && reservationIds.length > 0 ? reservationIds[0] : null;
+
     // 2. Update Invoice Record
     const updateQuery = `
       UPDATE invoices 
       SET 
-        invoice_number = $1, invoice_date = $2, invoice_to = $3, state_for_billing = $4,
-        pan_number = $5, status = $6, payment_method = $7, currency = $8, conversion_rate = $9,
-        sub_total = $10, tax_total = $11, grand_total = $12, display_taxes = $13,
-        display_food_charge = $14, extra_services = $15, services_name = $16,
-        services_amount = $17, pdf_password = $18, page_break = $19,
-        guest_name_width = $20, round_off_value = $21, updated_at = NOW()
+        invoice_date = $1, invoice_to = $2, state_for_billing = $3,
+        pan_number = $4, status = $5, payment_method = $6, currency = $7, conversion_rate = $8,
+        sub_total = $9, tax_total = $10, grand_total = $11, display_taxes = $12,
+        display_food_charge = $13, extra_services = $14, services_name = $15,
+        services_amount = $16, pdf_password = $17, page_break = $18,
+        guest_name_width = $19, round_off_value = $20, reservation_id = $21, updated_at = NOW()
       WHERE id = $22
       RETURNING *
     `;
 
     const values = [
-      apartmentBillNo,
       formatDate(date),
       invoiceTo,
       stateForBilling,
@@ -287,6 +298,7 @@ export const updateInvoice = async (req, res) => {
       toNum(pageBreak),
       toNum(guestNameWidth),
       toNum(roundOffValue),
+      primaryReservationId,
       id
     ];
 
@@ -298,6 +310,17 @@ export const updateInvoice = async (req, res) => {
       await client.query("ROLLBACK");
       console.log("Invoice not found for update");
       return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    // 2.5 Update invoice_reservations junction table
+    await client.query('DELETE FROM invoice_reservations WHERE invoice_id = $1', [id]);
+    if (reservationIds && Array.isArray(reservationIds)) {
+      for (const resId of reservationIds) {
+        await client.query(
+          `INSERT INTO invoice_reservations (invoice_id, reservation_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [id, resId]
+        );
+      }
     }
 
     // 3. Update Line Items (Delete all and Re-insert)
