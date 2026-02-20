@@ -94,33 +94,29 @@ export const createInvoice = async (req, res) => {
     lineItems.forEach(item => {
       const tariff = toNum(item.tariff);
       const days = toNum(item.days);
+      const roomBase = tariff * days;
       const roomTax = toNum(item.tax);
-      const roomTotal = (tariff * days) + roomTax;
 
-      subTotal += (tariff * days);
+      subTotal += roomBase;
       taxTotal += roomTax;
 
-      // Calculate food items for this row if they exist
+      // Calculate food items for this row
       if (item.foodItems && Array.isArray(item.foodItems)) {
         item.foodItems.forEach(food => {
-          const foodAmount = toNum(food.foodAmount);
-          const foodTax = toNum(food.foodTax) || (toNum(food.foodSGST) + toNum(food.foodCGST));
+          const fQty = toNum(food.foodQuantity) || 1;
+          const fTariff = toNum(food.foodTariff);
+          const fBase = fQty * fTariff;
+          const fTax = toNum(food.foodTax) || (toNum(food.foodSGST) + toNum(food.foodCGST));
 
-          subTotal += foodAmount;
-          taxTotal += foodTax;
+          subTotal += fBase;
+          taxTotal += fTax;
         });
       }
-
-      grandTotal += toNum(item.total);
     });
 
-    // Add extra services to subTotal and grandTotal
-    const sAmt = toNum(servicesAmount);
-    subTotal += sAmt;
-    grandTotal += sAmt;
-
-    // Add round off to grandTotal
-    grandTotal += toNum(roundOffValue);
+    const servicesAmt = toNum(servicesAmount);
+    // grandTotal should be sum of all row bases + all taxes + services + roundoff
+    grandTotal = subTotal + taxTotal + servicesAmt + toNum(roundOffValue);
 
     // ====================================
     // 2️⃣ INSERT INVOICE

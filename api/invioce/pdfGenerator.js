@@ -319,10 +319,11 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
     // Table data rows
     const rowHeight = 20;
-    let totalAmount = 0;
-    let totalWithoutGST = 0;
+    let totalTaxableAmount = 0;
+    let totalSGST = 0;
+    let totalCGST = 0;
 
-    // Dynamic GST grouping: { rate: { sgst: value, cgst: value } }
+    // GST grouping: { rate: { sgst: value, cgst: value } }
     const gstGroups = {};
 
     // Check if food charges should be displayed
@@ -342,222 +343,131 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
             return;
         }
 
-        // Main line item (room charges)
-        const roomAmount = parseFloat(item.total || 0);
-        const roomTax = parseFloat(item.tax || 0);
-        const roomSGST = roomTax / 2;
-        const roomCGST = roomTax / 2;
+        // --- ROOM CALCULATIONS (DYNAMIC) ---
+        const nights = parseFloat(item.days || 0);
+        const tariff = parseFloat(item.tariff || 0);
+        const roomBaseAmount = nights * tariff; // Nights × Tariff
 
-        const roomBaseAmount = roomAmount - roomTax;
-        const actualRoomRate = roomBaseAmount > 0 ? (roomTax / roomBaseAmount) * 100 : 0;
-        const intendedTaxRate = Math.round(actualRoomRate);
-        const intendedHalfRate = intendedTaxRate / 2;
+        // Derive Tax Rate from tax_amount provided in data
+        const taxAmountInData = parseFloat(item.tax || 0);
+        const derivedTaxRate = roomBaseAmount > 0 ? (taxAmountInData / roomBaseAmount) * 100 : 0;
+        const intendedTaxRate = Math.round(derivedTaxRate); // e.g., 5 or 18
+        const halfRate = intendedTaxRate / 2;
 
-        // Corrected SGST/CGST based on intended percentage
-        const correctedRoomSGST = Math.round(roomBaseAmount * intendedHalfRate) / 100;
-        const correctedRoomCGST = Math.round(roomBaseAmount * intendedHalfRate) / 100;
-        const correctedRoomTax = correctedRoomSGST + correctedRoomCGST;
+        const roomSGST = roomBaseAmount * (halfRate / 100);
+        const roomCGST = roomBaseAmount * (halfRate / 100);
+        const roomRowTotal = roomBaseAmount + roomSGST + roomCGST;
 
-        // Calculate dynamic row height for room entry (primarily based on Guest Name)
+        // Calculate dynamic row height
         doc.fontSize(8);
         const guestNamePadding = 8;
         const guestNameHeight = doc.heightOfString(item.guestName || '', { width: colWidths.guest - guestNamePadding, lineBreak: true });
-        const currentRowHeight = Math.max(20, guestNameHeight + 10); // Minimum 20px, plus 10px total vertical padding
+        const currentRowHeight = Math.max(20, guestNameHeight + 10);
 
         drawCell(colX.guest, yPos, colWidths.guest, currentRowHeight, item.guestName || '', {
-            fontSize: 8,
-            align: 'left',
-            paddingLeft: 4,
-            paddingRight: 2,
-            valign: 'middle'
+            fontSize: 8, align: 'left', paddingLeft: 4, paddingRight: 2, valign: 'middle'
         });
         drawCell(colX.checkIn, yPos, colWidths.checkIn, currentRowHeight, formatDate(item.checkInDate), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
         drawCell(colX.checkOut, yPos, colWidths.checkOut, currentRowHeight, formatDate(item.checkOutDate), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
-        drawCell(colX.nights, yPos, colWidths.nights, currentRowHeight, String(item.days || '0'), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+        drawCell(colX.nights, yPos, colWidths.nights, currentRowHeight, String(nights), {
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
         drawCell(colX.hsn, yPos, colWidths.hsn, currentRowHeight, '996311', {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
-        drawCell(colX.tariff, yPos, colWidths.tariff, currentRowHeight, formatCurrency(item.tariff), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+        drawCell(colX.tariff, yPos, colWidths.tariff, currentRowHeight, formatCurrency(tariff), {
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
         drawCell(colX.amount, yPos, colWidths.amount, currentRowHeight, formatCurrency(roomBaseAmount), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
-        drawCell(colX.tax, yPos, colWidths.tax, currentRowHeight, intendedTaxRate > 0 ? `${intendedTaxRate}%` : '0%', {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+        drawCell(colX.tax, yPos, colWidths.tax, currentRowHeight, `${intendedTaxRate}%`, {
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
-        drawCell(colX.sgst, yPos, colWidths.sgst, currentRowHeight, formatCurrency(correctedRoomSGST), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+        drawCell(colX.sgst, yPos, colWidths.sgst, currentRowHeight, formatCurrency(roomSGST), {
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
-        drawCell(colX.cgst, yPos, colWidths.cgst, currentRowHeight, formatCurrency(correctedRoomCGST), {
-            fontSize: 8,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+        drawCell(colX.cgst, yPos, colWidths.cgst, currentRowHeight, formatCurrency(roomCGST), {
+            fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
         });
 
-        totalAmount += (roomBaseAmount + correctedRoomTax);
-        totalWithoutGST += roomBaseAmount;
+        totalTaxableAmount += roomBaseAmount;
+        totalSGST += roomSGST;
+        totalCGST += roomCGST;
 
-        // Categorize room tax dynamically based on calculated rate
-        if (roomBaseAmount > 0 && correctedRoomTax > 0) {
-            const halfRateStr = intendedHalfRate.toString();
-
-            if (!gstGroups[halfRateStr]) {
-                gstGroups[halfRateStr] = { sgst: 0, cgst: 0 };
-            }
-            gstGroups[halfRateStr].sgst += correctedRoomSGST;
-            gstGroups[halfRateStr].cgst += correctedRoomCGST;
+        // Grouping for Summary
+        if (intendedTaxRate > 0) {
+            const hRateKey = halfRate.toString();
+            if (!gstGroups[hRateKey]) gstGroups[hRateKey] = { sgst: 0, cgst: 0 };
+            gstGroups[hRateKey].sgst += roomSGST;
+            gstGroups[hRateKey].cgst += roomCGST;
         }
 
         yPos += currentRowHeight;
 
-        // Food items
+        // --- FOOD ITEMS (DYNAMIC) ---
         if (showFoodCharge && item.foodItems && item.foodItems.length > 0) {
             item.foodItems.forEach((food) => {
-                const foodAmount = parseFloat(food.foodAmount || 0);
-                const foodTax = parseFloat(food.foodTax || 0);
-                const foodSGST = parseFloat(food.foodSGST || 0);
-                const foodCGST = parseFloat(food.foodCGST || 0);
-                const foodQty = food.foodQuantity || '1';
-                const foodBaseAmount = foodAmount - foodTax;
+                const fQty = parseFloat(food.foodQuantity || 0);
+                const fTariff = parseFloat(food.foodTariff || 0);
+                const foodBaseAmount = fQty * fTariff; // Quantity × Tariff
+                if (foodBaseAmount <= 0) return;
 
-                // Calculate dynamic row height for food entry
-                const foodLabelPadding = 8;
-                const foodLabelHeight = doc.heightOfString(food.foodChargeType || 'Food', { width: colWidths.guest - foodLabelPadding, lineBreak: true });
-                const currentFoodRowHeight = Math.max(20, foodLabelHeight + 10);
+                // Derive Food Tax Rate
+                const fTaxInData = parseFloat(food.foodTax || (parseFloat(food.foodSGST || 0) + parseFloat(food.foodCGST || 0)) || 0);
+                const fDerivedRate = foodBaseAmount > 0 ? (fTaxInData / foodBaseAmount) * 100 : 0;
+                const fIntendedRate = food.foodTaxPercentage ? parseFloat(food.foodTaxPercentage) : Math.round(fDerivedRate || 5);
+                const fHalfRate = fIntendedRate / 2;
 
-                const actualFoodRate = foodBaseAmount > 0 ? (foodTax / foodBaseAmount) * 100 : 0;
+                const foodSGST = foodBaseAmount * (fHalfRate / 100);
+                const foodCGST = foodBaseAmount * (fHalfRate / 100);
 
-                // Determine intended rate (allow override from data if exists)
-                const intendedTaxRate = food.foodTaxPercentage ? parseFloat(food.foodTaxPercentage) : Math.round(actualFoodRate);
-                const intendedHalfRate = intendedTaxRate / 2;
-
-                const correctedFoodSGST = Math.round(foodBaseAmount * intendedHalfRate) / 100;
-                const correctedFoodCGST = Math.round(foodBaseAmount * intendedHalfRate) / 100;
-                const correctedFoodTax = correctedFoodSGST + correctedFoodCGST;
+                const currentFoodRowHeight = 20;
 
                 drawCell(colX.guest, yPos, colWidths.guest, currentFoodRowHeight, food.foodChargeType || 'Food', {
-                    fontSize: 8,
-                    align: 'left',
-                    paddingLeft: 4,
-                    paddingRight: 2,
-                    valign: 'middle'
+                    fontSize: 8, align: 'left', paddingLeft: 4, paddingRight: 2, valign: 'middle'
                 });
                 drawCell(colX.checkIn, yPos, colWidths.checkIn, currentFoodRowHeight, formatDate(item.checkInDate), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
                 drawCell(colX.checkOut, yPos, colWidths.checkOut, currentFoodRowHeight, formatDate(item.checkOutDate), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
-                drawCell(colX.nights, yPos, colWidths.nights, currentFoodRowHeight, String(foodQty), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                drawCell(colX.nights, yPos, colWidths.nights, currentFoodRowHeight, String(fQty), {
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
                 drawCell(colX.hsn, yPos, colWidths.hsn, currentFoodRowHeight, '999711', {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
-                drawCell(colX.tariff, yPos, colWidths.tariff, currentFoodRowHeight, formatCurrency(food.foodTariff), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                drawCell(colX.tariff, yPos, colWidths.tariff, currentFoodRowHeight, formatCurrency(fTariff), {
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
                 drawCell(colX.amount, yPos, colWidths.amount, currentFoodRowHeight, formatCurrency(foodBaseAmount), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
-                drawCell(colX.tax, yPos, colWidths.tax, currentFoodRowHeight, intendedTaxRate > 0 ? `${intendedTaxRate}%` : '0%', {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                drawCell(colX.tax, yPos, colWidths.tax, currentFoodRowHeight, `${fIntendedRate}%`, {
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
-                drawCell(colX.sgst, yPos, colWidths.sgst, currentFoodRowHeight, formatCurrency(correctedFoodSGST), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                drawCell(colX.sgst, yPos, colWidths.sgst, currentFoodRowHeight, formatCurrency(foodSGST), {
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
-                drawCell(colX.cgst, yPos, colWidths.cgst, currentFoodRowHeight, formatCurrency(correctedFoodCGST), {
-                    fontSize: 8,
-                    align: 'center',
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    valign: 'middle'
+                drawCell(colX.cgst, yPos, colWidths.cgst, currentFoodRowHeight, formatCurrency(foodCGST), {
+                    fontSize: 8, align: 'center', paddingLeft: 2, paddingRight: 2, valign: 'middle'
                 });
 
-                totalAmount += (foodBaseAmount + correctedFoodTax);
-                totalWithoutGST += foodBaseAmount;
+                totalTaxableAmount += foodBaseAmount;
+                totalSGST += foodSGST;
+                totalCGST += foodCGST;
 
-                if (foodBaseAmount > 0 && correctedFoodTax > 0) {
-                    const halfRateStr = intendedHalfRate.toString();
-
-                    if (!gstGroups[halfRateStr]) {
-                        gstGroups[halfRateStr] = { sgst: 0, cgst: 0 };
-                    }
-                    gstGroups[halfRateStr].sgst += correctedFoodSGST;
-                    gstGroups[halfRateStr].cgst += correctedFoodCGST;
+                if (fIntendedRate > 0) {
+                    const hRateKey = fHalfRate.toString();
+                    if (!gstGroups[hRateKey]) gstGroups[hRateKey] = { sgst: 0, cgst: 0 };
+                    gstGroups[hRateKey].sgst += foodSGST;
+                    gstGroups[hRateKey].cgst += foodCGST;
                 }
 
                 yPos += currentFoodRowHeight;
@@ -565,134 +475,71 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         }
     });
 
-    // Total Amount Row (spans columns up to Amount, then shows SGST and CGST)
+    // --- TOTAL AMOUNT ROW ---
     const totalRowHeight = 20;
     const totalLabelWidth = colWidths.guest + colWidths.checkIn + colWidths.checkOut + colWidths.nights + colWidths.hsn + colWidths.tariff;
 
-    const totalSummarySGST = Object.values(gstGroups).reduce((acc, curr) => acc + curr.sgst, 0);
-    const totalSummaryCGST = Object.values(gstGroups).reduce((acc, curr) => acc + curr.cgst, 0);
-
     drawCell(tableX, yPos, totalLabelWidth, totalRowHeight, 'Total Amount', {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        valign: 'middle',
-        paddingLeft: 3,
-        paddingRight: 3
+        fontSize: 9, bold: true, align: 'center', valign: 'middle'
     });
-    drawCell(colX.amount, yPos, colWidths.amount, totalRowHeight, formatCurrency(totalWithoutGST), {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        paddingLeft: 2,
-        paddingRight: 2,
-        valign: 'middle'
+    drawCell(colX.amount, yPos, colWidths.amount, totalRowHeight, formatCurrency(totalTaxableAmount), {
+        fontSize: 9, bold: true, align: 'center', valign: 'middle'
     });
-    drawCell(colX.tax, yPos, colWidths.tax, totalRowHeight, '', {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        valign: 'middle'
+    drawCell(colX.tax, yPos, colWidths.tax, totalRowHeight, '', { valign: 'middle' });
+    drawCell(colX.sgst, yPos, colWidths.sgst, totalRowHeight, formatCurrency(totalSGST), {
+        fontSize: 9, bold: true, align: 'center', valign: 'middle'
     });
-    drawCell(colX.sgst, yPos, colWidths.sgst, totalRowHeight, formatCurrency(totalSummarySGST), {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        paddingLeft: 2,
-        paddingRight: 2,
-        valign: 'middle'
-    });
-    drawCell(colX.cgst, yPos, colWidths.cgst, totalRowHeight, formatCurrency(totalSummaryCGST), {
-        fontSize: 9,
-        bold: true,
-        align: 'center',
-        paddingLeft: 2,
-        paddingRight: 2,
-        valign: 'middle'
+    drawCell(colX.cgst, yPos, colWidths.cgst, totalRowHeight, formatCurrency(totalCGST), {
+        fontSize: 9, bold: true, align: 'center', valign: 'middle'
     });
     yPos += totalRowHeight;
 
-    // Summary rows - spanning from start to Tax column, value in CGST column
+    // --- SUMMARY ROWS ---
     const summaryLabelWidth = tableWidth - colWidths.cgst;
-
-    // Recalculate Final totals
     const servicesAmount = parseFloat(invoice.services_amount || 0);
     const roundOffValue = parseFloat(invoice.round_off_value || 0);
-
-    // Use calculated totals to ensure consistency, especially when filtering
-    const finalSubTotal = (!showFoodCharge) ? totalWithoutGST : (invoice.sub_total || totalWithoutGST);
-    const calculatedGrandTotal = totalAmount + servicesAmount + roundOffValue;
-    const finalGrandTotal = (!showFoodCharge) ? calculatedGrandTotal : (invoice.grand_total || calculatedGrandTotal);
+    const totalWithGST = totalTaxableAmount + totalSGST + totalCGST;
+    const grandTotal = totalWithGST + servicesAmount + roundOffValue;
+    const roundedGrandTotal = Math.round(grandTotal);
 
     const summaryRows = [
-        { label: 'Total Amount without GST', value: formatCurrency(finalSubTotal) }
+        { label: 'Total Amount without GST', value: formatCurrency(totalTaxableAmount) }
     ];
 
-    // Add dynamic GST rows from grouping
+    // Dynamic GST Rows
     const sortedRates = Object.keys(gstGroups).sort((a, b) => parseFloat(a) - parseFloat(b));
-    let totalSGST = 0;
-    let totalCGST = 0;
-
     sortedRates.forEach(rate => {
         const { sgst, cgst } = gstGroups[rate];
-        totalSGST += sgst;
-        totalCGST += cgst;
-
-        // Convert "2.5" back to number for display, remove .0 if integer
         const displayRate = parseFloat(rate);
-
         summaryRows.push({ label: `SGST @ ${displayRate}%`, value: formatCurrency(sgst) });
         summaryRows.push({ label: `CGST @ ${displayRate}%`, value: formatCurrency(cgst) });
     });
 
     summaryRows.push(
-        { label: 'Amount', value: formatCurrency(totalWithoutGST) },
-        { label: invoice.services_name || '2 % Bank Charges', value: formatCurrency(servicesAmount) },
-        { label: 'Total Amount', value: formatCurrency(totalWithoutGST + servicesAmount), bold: true },
-        { label: 'Total Amount with GST (Round Off)', value: formatCurrency(finalGrandTotal), bold: true },
+        { label: 'Amount', value: formatCurrency(totalTaxableAmount) },
+        { label: invoice.services_name || 'Laundry/Extra Charges', value: formatCurrency(servicesAmount) },
+        { label: 'Total Amount', value: formatCurrency(totalTaxableAmount + servicesAmount), bold: true },
+        { label: 'Total Amount with GST (Round Off)', value: formatCurrency(roundedGrandTotal), bold: true }
     );
 
     summaryRows.forEach(row => {
-        // Calculate dynamic height for summary rows (just in case they wrap)
-        const labelPadding = 6;
-        const labelHeight = doc.heightOfString(row.label, { width: summaryLabelWidth - labelPadding });
-        const currentSummaryRowHeight = Math.max(20, labelHeight + 8);
-
-        drawCell(tableX, yPos, summaryLabelWidth, currentSummaryRowHeight, row.label, {
-            fontSize: 8,
-            bold: true,  // All labels are now bold
-            align: 'center',
-            valign: 'middle',
-            paddingLeft: 4,
-            paddingRight: 4
+        drawCell(tableX, yPos, summaryLabelWidth, 20, row.label, {
+            fontSize: 8, bold: true, align: 'center', valign: 'middle'
         });
-        drawCell(colX.cgst, yPos, colWidths.cgst, currentSummaryRowHeight, row.value, {
-            fontSize: 8,
-            bold: row.bold || false,
-            align: 'center',
-            paddingLeft: 2,
-            paddingRight: 2,
-            valign: 'middle'
+        drawCell(colX.cgst, yPos, colWidths.cgst, 20, row.value, {
+            fontSize: 8, bold: row.bold || false, align: 'center', valign: 'middle'
         });
-        yPos += currentSummaryRowHeight;
+        yPos += 20;
     });
 
-    // Amount in Words (full width)
-    const amountInWords = numberToWords(finalGrandTotal);
-    const wordsText = `Amount (in Words) ${amountInWords}`;
-    const wordsPadding = 10;
-    const wordsHeight = doc.heightOfString(wordsText, { width: tableWidth - wordsPadding });
-    const dynamicWordsHeight = Math.max(20, wordsHeight + 8);
-
-    drawCell(tableX, yPos, tableWidth, dynamicWordsHeight, wordsText, {
-        fontSize: 8,
-        bold: true,
-        align: 'center',
-        valign: 'middle',
-        paddingLeft: 4,
-        paddingRight: 4
+    // Amount in Words
+    const amountInWords = numberToWords(roundedGrandTotal);
+    const wordsText = `Amount (in Words) : ${amountInWords} Only`;
+    drawCell(tableX, yPos, tableWidth, 25, wordsText, {
+        fontSize: 8, bold: true, align: 'center', valign: 'middle', paddingLeft: 10
     });
-    yPos += dynamicWordsHeight + 12;
+    yPos += 37;
+
 
     // ===== FOOTER NOTES =====
     doc.fontSize(7)
