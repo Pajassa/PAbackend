@@ -534,7 +534,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
     // Amount in Words
     const amountInWords = numberToWords(roundedGrandTotal);
-    const wordsText = `Amount (in Words) : ${amountInWords} Only`;
+    const wordsText = `Amount (in Words) : ${amountInWords}`;
     drawCell(tableX, yPos, tableWidth, 25, wordsText, {
         fontSize: 8, bold: true, align: 'center', valign: 'middle', paddingLeft: 10
     });
