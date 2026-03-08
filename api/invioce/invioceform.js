@@ -54,7 +54,36 @@ export const createInvoice = async (req, res) => {
     // ====================================
     let finalInvoiceNumber = apartmentBillNo;
 
-    if (finalInvoiceNumber) {
+    if (!finalInvoiceNumber || finalInvoiceNumber.trim() === '') {
+      // Auto-generate logic
+      const now = new Date();
+      const year = String(now.getFullYear()).slice(-2);
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const prefix = `PAR-${year}-${month}-`;
+
+      const lastInvoiceQuery = `
+        SELECT invoice_number 
+        FROM invoices 
+        WHERE invoice_number LIKE $1
+      `;
+      const lastInvoiceResult = await client.query(lastInvoiceQuery, [`${prefix}%`]);
+
+      let maxSequence = 0;
+      for (const row of lastInvoiceResult.rows) {
+        if (!row.invoice_number) continue;
+        const parts = row.invoice_number.split('-');
+        if (parts.length >= 4) {
+          const seq = parseInt(parts[3], 10);
+          if (!isNaN(seq) && seq > maxSequence) {
+            maxSequence = seq;
+          }
+        }
+      }
+
+      const nextSequence = maxSequence + 1;
+      const sequenceString = String(nextSequence).padStart(6, '0');
+      finalInvoiceNumber = `${prefix}${sequenceString}`;
+    } else {
       const checkQuery = `SELECT id FROM invoices WHERE invoice_number = $1`;
       const checkResult = await client.query(checkQuery, [finalInvoiceNumber]);
 
