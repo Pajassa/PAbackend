@@ -11,7 +11,7 @@ const pool = new Pool({
   // connectionString: `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@13.61.236.213:5432/${process.env.DB_NAME}?sslmode=require`,
   
   // Alternative: Configure SSL separately
-  host: '13.61.236.213',
+  host: '3.6.44.252',
   port: 5432,
   database: process.env.DB_NAME,
   user: process.env.DB_USERNAME,

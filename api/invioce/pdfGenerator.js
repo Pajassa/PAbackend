@@ -496,7 +496,8 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
     // --- SUMMARY ROWS ---
     const summaryLabelWidth = tableWidth - colWidths.cgst;
-    const servicesAmount = parseFloat(invoice.services_amount || 0);
+    const showExtraServices = invoice.extra_services === true || invoice.extra_services === 'Yes';
+    const servicesAmount = showExtraServices ? parseFloat(invoice.services_amount || 0) : 0;
     const roundOffValue = parseFloat(invoice.round_off_value || 0);
     const totalWithGST = totalTaxableAmount + totalSGST + totalCGST;
     const grandTotal = totalWithGST + servicesAmount + roundOffValue;
@@ -515,11 +516,21 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
         summaryRows.push({ label: `CGST @ ${displayRate}%`, value: formatCurrency(cgst) });
     });
 
+    // Total Amount with GST (base + SGST + CGST)
     summaryRows.push(
-        { label: 'Amount', value: formatCurrency(totalTaxableAmount) },
-        { label: invoice.services_name || 'Laundry/Extra Charges', value: formatCurrency(servicesAmount) },
-        { label: 'Total Amount', value: formatCurrency(totalTaxableAmount + servicesAmount), bold: true },
-        { label: 'Total Amount with GST (Round Off)', value: formatCurrency(roundedGrandTotal), bold: true }
+        { label: 'Total Amount with GST', value: formatCurrency(totalWithGST), bold: true }
+    );
+
+    // Laundry / Extra Charges (only if > 0)
+    if (servicesAmount > 0) {
+        summaryRows.push(
+            { label: invoice.services_name || 'Laundry Charges', value: formatCurrency(servicesAmount) }
+        );
+    }
+
+    // Grand Total Amount (Total with GST + Laundry, rounded)
+    summaryRows.push(
+        { label: 'Grand Total Amount', value: formatCurrency(roundedGrandTotal), bold: true }
     );
 
     summaryRows.forEach(row => {

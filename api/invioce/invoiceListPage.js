@@ -251,7 +251,11 @@ export const updateInvoice = async (req, res) => {
       }
     });
 
-    const servicesAmt = toNum(servicesAmount);
+    // If Extra Services is "No", clear service fields to prevent stale data
+    const effectiveServicesName = extraServices === "Yes" ? servicesName : "";
+    const effectiveServicesAmount = extraServices === "Yes" ? toNum(servicesAmount) : 0;
+
+    const servicesAmt = effectiveServicesAmount;
     // grandTotal should be sum of all row bases + all taxes + services + roundoff
     grandTotal = subTotal + taxTotal + servicesAmt + toNum(roundOffValue);
 
@@ -289,8 +293,8 @@ export const updateInvoice = async (req, res) => {
       displayTaxes,
       displayFoodCharge === "Yes",
       extraServices === "Yes",
-      servicesName,
-      toNum(servicesAmount),
+      effectiveServicesName,
+      servicesAmt,
       pdfPassword,
       toNum(pageBreak),
       toNum(guestNameWidth),

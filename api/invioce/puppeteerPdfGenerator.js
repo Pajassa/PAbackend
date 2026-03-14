@@ -105,7 +105,8 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
         return { ...item, nights, tariff, amount, intendedTaxRate, sgst, cgst, foodItems };
     });
 
-    const servicesAmount = parseFloat(invoiceData.services_amount || 0);
+    const showExtraServices = invoiceData.extra_services === true || invoiceData.extra_services === 'Yes';
+    const servicesAmount = showExtraServices ? parseFloat(invoiceData.services_amount || 0) : 0;
     const roundOffValue = parseFloat(invoiceData.round_off_value || 0);
     const totalWithGST = totalTaxableAmount + totalSGST + totalCGST;
     const grandTotal = totalWithGST + servicesAmount + roundOffValue;
@@ -272,20 +273,18 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
                         <td class="text-right">₹${gstGroups[rate].cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                 `).join('')}
-                <tr>
-                        <td colspan="3" class="summary-label">Amount</td>
-                        <td class="text-right">₹${totalTaxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <tr class="bold">
+                    <td colspan="3" class="summary-label">Total Amount with GST</td>
+                    <td class="text-right">₹${totalWithGST.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
+                ${servicesAmount > 0 ? `
                 <tr>
-                    <td colspan="3" class="summary-label">${invoiceData.services_name || 'Laundry/Extra Charges'}</td>
+                    <td colspan="3" class="summary-label">${invoiceData.services_name || 'Laundry Charges'}</td>
                     <td class="text-right">₹${servicesAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                <tr class="bold">
-                    <td colspan="3" class="summary-label">Total Amount</td>
-                    <td class="text-right">₹${(totalTaxableAmount + servicesAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                </tr>
+                ` : ''}
                 <tr class="total-amount-row">
-                    <td colspan="3" class="summary-label" style="font-size: 10pt;">Total Amount with GST (Round Off)</td>
+                    <td colspan="3" class="summary-label" style="font-size: 10pt;">Grand Total Amount</td>
                     <td class="text-right" style="font-size: 10pt;">₹${roundedGrandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             </tbody>
