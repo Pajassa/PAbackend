@@ -143,7 +143,8 @@ export const createInvoice = async (req, res) => {
       }
     });
 
-    const servicesAmt = toNum(servicesAmount);
+    const servicesAmt = extraServices === "Yes" ? toNum(servicesAmount) : 0;
+    const effectiveServicesName = extraServices === "Yes" ? servicesName : "";
     // grandTotal should be sum of all row bases + all taxes + services + roundoff
     grandTotal = subTotal + taxTotal + servicesAmt + toNum(roundOffValue);
 
@@ -186,8 +187,8 @@ export const createInvoice = async (req, res) => {
       displayTaxes,
       displayFoodCharge === "Yes",
       extraServices === "Yes",
-      servicesName,
-      toNum(servicesAmount),
+      effectiveServicesName,
+      servicesAmt,
       pdfPassword,
       toNum(pageBreak),
       toNum(guestNameWidth),
