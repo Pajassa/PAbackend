@@ -381,7 +381,7 @@ async function fetchReservationData(id) {
       p.master_bedroom, p.common_bedroom, p.host_id,
       hi.host_name, hi.host_email,
       p.contact_person, p.contact_number,
-      rai.host_base_rate, rai.host_taxes,
+      rai.host_base_rate, rai.host_taxes, rai.host_name,
       rai.host_total_amount, rai.apartment_type, rai.host_payment_mode,
       rai.comments, rai.services, rai.note,
       (
