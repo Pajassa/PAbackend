@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { formatDateExact } from "../../helpers/formatDate.js";
 import { formatServices } from "../../helpers/formatServices.js";
 import pool from "../../client.js";
+import puppeteer from "puppeteer";
 
 const resend = new Resend(process.env.RESEND_API_KEY); // ✅ Load from .env
 
@@ -9,6 +10,1104 @@ const formatOccupancy = (occ) => {
     const map = { 1: "Single", 2: "Double", 3: "Triple", 4: "Quadruple", 5: "Quintuple", 6: "Sextuple" };
     return map[Number(occ)] || occ;
 };
+
+const generatePdfBuffer = async (html) => {
+    const browser = await puppeteer.launch({
+        headless: "new",
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    try {
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: "networkidle0" });
+        await page.evaluate(() => document.fonts.ready);
+        const pdfBuffer = await page.pdf({
+            format: "A4",
+            printBackground: true,
+            margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
+        });
+        return pdfBuffer;
+    } finally {
+        await browser.close();
+    }
+};
+
+const generateGuestPdfHtml = ({
+    guestname,
+    reservationNo,
+    formatted,
+    checkin,
+    checkout,
+    check_in_time,
+    check_out_time,
+    contactnumberguest,
+    additionalGuestsHtml,
+    chargeabledays,
+    occupancy,
+    address1,
+    address2,
+    address3,
+    fetchedPropertyType,
+    apartment_type,
+    roomtype,
+    services,
+    modeofpayment,
+    amount,
+    base_rate,
+    taxes,
+    tariff_type,
+    clientName,
+    guestemail,
+    originalBooking,
+    modificationType,
+    Title
+}) => `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #ffffff;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: #0f172a;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 3px solid #1e293b;
+            padding-bottom: 28px;
+            margin-bottom: 40px;
+        }
+        .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo-pa {
+            width: 44px;
+            height: 44px;
+            background: #f4a01e;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .welcome-box {
+            margin-bottom: 35px;
+            padding: 25px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border-left: 6px solid #f4a01e;
+        }
+        .section-box {
+            border: 2px solid #cbd5e1;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        .section-header {
+            background: #f1f5f9;
+            padding: 16px 24px;
+            border-bottom: 2px solid #cbd5e1;
+        }
+        .section-content {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .billing-box {
+            background: #f59e0b;
+            border-radius: 24px;
+            padding: 40px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        .label {
+            display: block;
+            font-size: 12px;
+            font-weight: 800;
+            color: #475569;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .stat-box {
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-box">
+            <div class="logo-pa">PA</div>
+            <div>
+                <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em;">GUEST BOOKING</h1>
+                <p style="margin: 6px 0 0 0; color: #334155; font-size: 16px; font-weight: 600;">Guest ${Title}</p>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <p style="margin: 0; font-size: 12px; font-weight: 800; color: #f4a01e; text-transform: uppercase; letter-spacing: 0.12em;">Reservation ID</p>
+            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 900; color: #0f172a;">${reservationNo}</p>
+            <p style="margin: 10px 0 0 0; font-size: 13px; font-weight: 600; color: #475569;">Booked: ${formatted}</p>
+        </div>
+    </div>
+
+    <div class="welcome-box">
+        <p style="margin: 0; font-size: 18px; color: #1e293b; line-height: 1.5; font-weight: 700;">
+            Hi <span style="color: #f4a01e;">${guestname}</span>,
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 15px; color: #475569; line-height: 1.6;">
+            PAJASA has successfully updated a booking at <strong>our property</strong>. We are delighted to host you on <strong>${formatDateExact(checkin, false)}</strong>.
+        </p>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">1. Guest Profile</h2>
+        </div>
+        <div class="section-content">
+            <div>
+                <label class="label">Guest Name</label>
+                <div class="value">${guestname}</div>
+            </div>
+            <div>
+                <label class="label">Contact Number</label>
+                <div class="value">${contactnumberguest || 'N/A'}</div>
+            </div>
+            <div style="grid-column: span 2;">
+                <label class="label">Email Address</label>
+                <div class="value">${guestemail}</div>
+            </div>
+            <div style="grid-column: span 2;">
+                <label class="label">Company / Business Name</label>
+                <div class="value">${clientName}</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 32px; margin-bottom: 32px;">
+        <div class="section-box" style="margin-bottom: 0;">
+            <div class="section-header">
+                <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">2. Stay Schedule</h2>
+            </div>
+            <div style="padding: 24px;">
+                <div style="margin-bottom: 20px;">
+                    <label class="label">Check-In</label>
+                    ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
+                        <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
+                        <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
+                    ` : `
+                        <div class="value">${formatDateExact(checkin, true)}</div>
+                    `}
+                    <div style="font-size: 14px; color: #f4a01e; font-weight: 800; margin-top: 4px;">Time: ${check_in_time}</div>
+                </div>
+                <div style="padding-top: 16px; border-top: 2px dashed #e2e8f0;">
+                    <label class="label">Check-Out</label>
+                    ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
+                        <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
+                        <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
+                    ` : additionalGuestsHtml ? `
+                        <div class="value">${additionalGuestsHtml}</div>
+                    ` : `
+                        <div class="value">${formatDateExact(checkout, false)}</div>
+                    `}
+                    <div style="font-size: 14px; color: #b91c1c; font-weight: 800; margin-top: 4px;">Time: ${check_out_time}</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <div class="stat-box" style="border: 2px solid #f4a01e; background: #fffbeb;">
+                <div style="font-size: 13px; font-weight: 900; color: #f4a01e; text-transform: uppercase; margin-bottom: 8px;">Total Stay</div>
+                <div style="font-size: 28px; font-weight: 900; color: #92400e;">${chargeabledays} <span style="font-size: 16px;">Nights</span></div>
+            </div>
+            <div class="stat-box" style="border: 2px solid #7e22ce; background: #f5f3ff;">
+                <div style="font-size: 13px; font-weight: 900; color: #7e22ce; text-transform: uppercase; margin-bottom: 8px;">Guest Count</div>
+                <div style="font-size: 28px; font-weight: 900; color: #581c87;">${formatOccupancy(occupancy)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">3. Residence Information</h2>
+        </div>
+        <div class="section-content">
+            <div style="grid-column: span 2;">
+                <label class="label">Apartment Full Address</label>
+                <div class="value">${address1}, ${address2}, ${address3}</div>
+            </div>
+            <div>
+                <label class="label">Property Category</label>
+                <div class="value">${fetchedPropertyType || apartment_type}</div>
+            </div>
+            <div>
+                <label class="label">Room Selection</label>
+                <div class="value">${roomtype}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="billing-box">
+        <div style="text-align: left; display: flex; flex-direction: column; gap: 15px;">
+            <div style="background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); padding: 15px 30px; border-radius: 16px; display: table;">
+                <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">METHOD: ${modeofpayment}</span>
+            </div>
+            <div>
+                <span style="background: white; color: #f4a01e; padding: 6px 20px; border-radius: 50px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    VERIFIED
+                </span>
+            </div>
+        </div>
+        <div style="text-align: right; ${modeofpayment === 'Bill to Company' ? 'display: none;' : ''}">
+            <p style="margin: 0; font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.1em;">Projected Billing Total</p>
+            <h3 style="margin: 10px 0 0 0; font-size: 64px; font-weight: 900; color: #ffffff; letter-spacing: -0.04em;">₹ ${(amount * chargeabledays).toLocaleString('en-IN')}</h3>
+            <p style="margin: 12px 0 0 0; font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 600; font-style: italic; opacity: 0.9;">* Figures include current applicable GST and service rates.</p>
+        </div>
+    </div>
+
+    <div class="welcome-box" style="margin-top: 40px; border-left: none; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 15px 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase;">Terms & Conditions</h3>
+        <div style="font-size: 13px; color: #475569; line-height: 1.8;">
+            1. Check in & Check out Time 14:00 PM & 11:00 AM<br>
+            2. Every guest will have to carry a print of the confirmation along with the company and government photo ID at the time of checking in.<br>
+            3. Visitors are permitted in the apartment only between 10:00 AM and 7:00 PM. Maximum of One visitor per day.<br>
+            4. Cancellation Terms: Kindly visit <span style="color: #f4a01e;">pajasaapartments.com/terms-and-conditions/</span>
+        </div>
+    </div>
+
+    <!-- Footer Links -->
+    <div style="background-color: #f59e0b; padding: 20px; border-radius: 12px; text-align: center; margin-top: 40px;">
+        <div style="margin-bottom: 10px;">
+            <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Mumbai</a>
+            <a href="https://www.pajasaapartments.com/in/pune/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Pune</a>
+            <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Bangalore</a>
+            <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Hyderabad</a>
+        </div>
+        <div>
+            <a href="http://pajasaapartments.com/in/noida/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Noida</a>
+            <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Delhi</a>
+            <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Gurgaon</a>
+            <a href="https://www.pajasaapartments.com/in/chennai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Chennai</a>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
+        <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+    </div>
+</body>
+</html>
+`;
+
+const generateApartmentPdfHtml = ({
+    reservationNo,
+    hostName,
+    Title,
+    address1,
+    address2,
+    address3,
+    contactperson,
+    contactnumber,
+    guestname,
+    contactnumberguest,
+    guesttype,
+    originalBooking,
+    modificationType,
+    checkin,
+    checkout,
+    chargeabledays,
+    fetchedPropertyType,
+    apartment_type,
+    roomtype,
+    occupancy,
+    host_payment_mode,
+    hostPaymentDetails,
+    services,
+    check_in_time,
+    check_out_time
+}) => `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #ffffff;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: #0f172a;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 3px solid #1e293b;
+            padding-bottom: 28px;
+            margin-bottom: 40px;
+        }
+        .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo-pa {
+            width: 44px;
+            height: 44px;
+            background: #f4a01e;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .welcome-box {
+            margin-bottom: 35px;
+            padding: 25px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border-left: 6px solid #f4a01e;
+        }
+        .section-box {
+            border: 2px solid #cbd5e1;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        .section-header {
+            background: #f1f5f9;
+            padding: 16px 24px;
+            border-bottom: 2px solid #cbd5e1;
+        }
+        .section-content {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .billing-box {
+            background: #f59e0b;
+            border-radius: 24px;
+            padding: 40px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .label {
+            display: block;
+            font-size: 12px;
+            font-weight: 800;
+            color: #475569;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .stat-box {
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-box">
+            <div class="logo-pa">PA</div>
+            <div>
+                <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em;">APARTMENT BOOKING</h1>
+                <p style="margin: 6px 0 0 0; color: #334155; font-size: 16px; font-weight: 600;">Apartment ${Title}</p>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <p style="margin: 0; font-size: 12px; font-weight: 800; color: #f4a01e; text-transform: uppercase; letter-spacing: 0.12em;">Reservation ID</p>
+            <p style="margin: 4px 0 0 0; font-size: 22px; font-weight: 900; color: #0f172a;">${reservationNo}</p>
+        </div>
+    </div>
+
+    <div class="welcome-box">
+        <p style="margin: 0; font-size: 18px; color: #1e293b; line-height: 1.5; font-weight: 700;">
+            Hi <span style="color: #f4a01e;">${hostName}</span>,
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 15px; color: #475569; line-height: 1.6;">
+            PAJASA has successfully created a new booking at your property. The guest will be arriving on <strong>${formatDateExact(checkin, false)}</strong>. Please ensure the apartment is ready.
+        </p>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">1. Host & Residence</h2>
+        </div>
+        <div class="section-content">
+            <div>
+                <label class="label">Host Name</label>
+                <div class="value">${hostName}</div>
+            </div>
+            <div>
+                <label class="label">Contact Person</label>
+                <div class="value">${contactperson}</div>
+            </div>
+            <div>
+                <label class="label">Contact Number</label>
+                <div class="value">${contactnumber}</div>
+            </div>
+            <div>
+                <label class="label">Property Category</label>
+                <div class="value">${fetchedPropertyType || apartment_type}</div>
+            </div>
+            <div style="grid-column: span 2;">
+                <label class="label">Apartment Full Address</label>
+                <div class="value">${address1}, ${address2}, ${address3}</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 32px; margin-bottom: 32px;">
+        <div class="section-box" style="margin-bottom: 0;">
+            <div class="section-header">
+                <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">2. Stay Schedule</h2>
+            </div>
+            <div style="padding: 24px;">
+                <div style="margin-bottom: 20px;">
+                    <label class="label">Check-In</label>
+                    ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
+                        <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
+                        <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
+                    ` : `
+                        <div class="value">${formatDateExact(checkin, true)}</div>
+                    `}
+                    <div style="font-size: 14px; color: #f4a01e; font-weight: 800; margin-top: 4px;">Time: ${check_in_time}</div>
+                </div>
+                <div style="padding-top: 16px; border-top: 2px dashed #e2e8f0;">
+                    <label class="label">Check-Out</label>
+                    ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
+                        <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
+                        <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
+                    ` : `
+                        <div class="value">${formatDateExact(checkout, false)}</div>
+                    `}
+                    <div style="font-size: 14px; color: #b91c1c; font-weight: 800; margin-top: 4px;">Time: ${check_out_time}</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <div class="stat-box" style="border: 2px solid #f4a01e; background: #fffbeb;">
+                <div style="font-size: 13px; font-weight: 900; color: #f4a01e; text-transform: uppercase; margin-bottom: 8px;">Total Stay</div>
+                <div style="font-size: 28px; font-weight: 900; color: #92400e;">${chargeabledays} <span style="font-size: 16px;">Nights</span></div>
+            </div>
+            <div class="stat-box" style="border: 2px solid #7e22ce; background: #f5f3ff;">
+                <div style="font-size: 13px; font-weight: 900; color: #7e22ce; text-transform: uppercase; margin-bottom: 8px;">Guest Count</div>
+                <div style="font-size: 28px; font-weight: 900; color: #581c87;">${formatOccupancy(occupancy)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">3. Guest Profile</h2>
+        </div>
+        <div class="section-content">
+            <div>
+                <label class="label">Guest Name</label>
+                <div class="value">${guestname}</div>
+            </div>
+            <div>
+                <label class="label">Contact Number</label>
+                <div class="value">${contactnumberguest || 'N/A'}</div>
+            </div>
+            <div style="grid-column: span 2;">
+                <label class="label">Guest Type / Client</label>
+                <div class="value">${guesttype}</div>
+            </div>
+        </div>
+    </div>
+
+     <div class="billing-box" style="padding: 40px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <div style="text-align: left; display: flex; flex-direction: column; gap: 15px;">
+            <div style="background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); padding: 15px 30px; border-radius: 16px; display: table;">
+                <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">METHOD: ${host_payment_mode}</span>
+            </div>
+            <div>
+                <span style="background: white; color: #f4a01e; padding: 6px 20px; border-radius: 50px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    VERIFIED
+                </span>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <p style="margin: 0; font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.1em;">Host Payment Summary</p>
+            <div style="margin-top: 12px; font-size: 16px; color: #ffffff; font-weight: 600; line-height: 1.6;">
+                ${hostPaymentDetails}
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Links -->
+    <div style="background-color: #f59e0b; padding: 20px; border-radius: 12px; text-align: center; margin-top: 40px;">
+        <div style="margin-bottom: 10px;">
+            <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Mumbai</a>
+            <a href="https://www.pajasaapartments.com/in/pune/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Pune</a>
+            <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Bangalore</a>
+            <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Hyderabad</a>
+        </div>
+        <div>
+            <a href="http://pajasaapartments.com/in/noida/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Noida</a>
+            <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Delhi</a>
+            <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Gurgaon</a>
+            <a href="https://www.pajasaapartments.com/in/chennai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Chennai</a>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
+        <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+    </div>
+</body>
+</html>
+`;
+
+const generateGuestEmailHtml = ({
+    guestname,
+    reservationNo,
+    formatted,
+    checkin,
+    checkout,
+    check_in_time,
+    check_out_time,
+    contactnumberguest,
+    additionalGuestsHtml,
+    chargeabledays,
+    occupancy,
+    address1,
+    address2,
+    address3,
+    fetchedPropertyType,
+    apartment_type,
+    roomtype,
+    services,
+    modeofpayment,
+    amount,
+    base_rate,
+    taxes,
+    tariff_type,
+    clientName,
+    guestemail,
+    originalBooking,
+    modificationType,
+    Title
+}) => `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #ffffff; font-family: 'Inter', Arial, sans-serif; color: #0f172a; }
+        .container { width: 100%; max-width: 700px; margin: 0 auto; background-color: #ffffff; }
+        @media only screen and (max-width: 600px) {
+            .container { width: 100% !important; }
+            .grid-col { display: block !important; width: 100% !important; margin-bottom: 20px; }
+            .stack-cell { display: block !important; width: 100% !important; text-align: left !important; padding: 10px 0 !important; }
+            .mobile-hide { display: none !important; }
+            .mobile-text-left { text-align: left !important; }
+            .billing-content { padding: 25px !important; }
+            .billing-title { font-size: 32px !important; }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Inter', Arial, sans-serif; color: #0f172a;">
+    <div class="container" style="width: 100%; max-width: 700px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+        <!-- Header -->
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #1e293b; padding-bottom: 28px; margin-bottom: 40px;">
+            <tr>
+                <td align="left" valign="bottom">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 44px; height: 44px; background: #f4a01e; border-radius: 10px; display: inline-block; text-align: center; line-height: 44px; color: white; font-weight: 900; font-size: 22px; vertical-align: middle;">PA</div>
+                        <div style="display: inline-block; vertical-align: middle; margin-left: 10px;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em; text-transform: uppercase;">GUEST BOOKING</h1>
+                            <p style="margin: 4px 0 0 0; color: #334155; font-size: 14px; font-weight: 600;">Guest ${Title}</p>
+                        </div>
+                    </div>
+                </td>
+                <td align="right" valign="bottom">
+                    <p style="margin: 0; font-size: 11px; font-weight: 800; color: #f4a01e; text-transform: uppercase; letter-spacing: 0.12em;">Reservation ID</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 900; color: #0f172a;">${reservationNo}</p>
+                    <p style="margin: 8px 0 0 0; font-size: 12px; font-weight: 600; color: #475569;">Booked: ${formatted}</p>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Welcome Message -->
+        <div style="margin-bottom: 35px; padding: 25px; background: #f8fafc; border-radius: 16px; border-left: 6px solid #f4a01e;">
+            <p style="margin: 0; font-size: 18px; color: #1e293b; line-height: 1.5; font-weight: 700;">
+                Hi <span style="color: #f4a01e;">${guestname}</span>,
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 15px; color: #475569; line-height: 1.6;">
+                PAJASA has successfully created a new booking at <strong>our property</strong>. We are excited to host you on <strong>${formatDateExact(checkin, false)}</strong>.
+            </p>
+        </div>
+
+        <!-- Section 1: Guest Profile -->
+        <div style="border: 2px solid #cbd5e1; border-radius: 16px; overflow: hidden; margin-bottom: 32px;">
+            <div style="background: #f1f5f9; padding: 16px 24px; border-bottom: 2px solid #cbd5e1;">
+                <h2 style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.08em;">1. Guest Profile</h2>
+            </div>
+            <div style="padding: 24px;">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td width="50%" valign="top" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Guest Name</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${guestname}</div>
+                        </td>
+                        <td width="50%" valign="top" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Contact Number</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${contactnumberguest || 'N/A'}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="50%" valign="top">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Company / Business Name</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${clientName}</div>
+                        </td>
+                        <td width="50%" valign="top">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Email Address</label>
+                            <div style="font-size: 14px; font-weight: 700; color: #0f172a; word-break: break-all;">${guestemail}</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2: Stay Schedule -->
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
+            <tr>
+                <td width="65%" valign="top" style="padding-right: 20px;">
+                    <div style="border: 2px solid #cbd5e1; border-radius: 16px; overflow: hidden; height: 100%;">
+                        <div style="background: #f1f5f9; padding: 16px 24px; border-bottom: 2px solid #cbd5e1;">
+                            <h2 style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.08em;">2. Stay Schedule</h2>
+                        </div>
+                        <div style="padding: 24px;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-In</label>
+                                ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
+                                    <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
+                                ` : `
+                                    <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatDateExact(checkin, true)}</div>
+                                `}
+                                <div style="font-size: 13px; color: #f4a01e; font-weight: 700; margin-top: 4px;">Time: ${check_in_time}</div>
+                            </div>
+                            <div style="border-top: 2px dashed #e2e8f0; padding-top: 16px;">
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-Out</label>
+                                ${additionalGuestsHtml ? `
+                                    <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(checkout, false)}</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${additionalGuestsHtml}</div>
+                                ` : originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
+                                    <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
+                                ` : `
+                                    <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatDateExact(checkout, false)}</div>
+                                `}
+                                <div style="font-size: 13px; color: #475569; font-weight: 700; margin-top: 4px;">Time: ${check_out_time}</div>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td width="35%" valign="top">
+                    <div style="border: 2px solid #f4a01e; border-radius: 16px; padding: 20px; text-align: center; background: #fffbeb; margin-bottom: 16px;">
+                        <div style="font-size: 11px; font-weight: 900; color: #f4a01e; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Total Stay</div>
+                        <div style="font-size: 24px; font-weight: 900; color: #92400e;">${chargeabledays} <span style="font-size: 14px; font-weight: 700;">Nights</span></div>
+                    </div>
+                    <div style="border: 2px solid #7e22ce; border-radius: 16px; padding: 20px; text-align: center; background: #f5f3ff;">
+                        <div style="font-size: 11px; font-weight: 900; color: #7e22ce; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Guest Count</div>
+                        <div style="font-size: 24px; font-weight: 900; color: #581c87;">${formatOccupancy(occupancy)}</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Section 3: Residence & Features -->
+        <div style="border: 2px solid #cbd5e1; border-radius: 16px; overflow: hidden; margin-bottom: 32px;">
+            <div style="background: #f1f5f9; padding: 16px 24px; border-bottom: 2px solid #cbd5e1;">
+                <h2 style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.08em;">3. Residence Information</h2>
+            </div>
+            <div style="padding: 24px;">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td colspan="2" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Apartment Full Address</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a; line-height: 1.5;">${address1}, ${address2}, ${address3}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="50%">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Property Category</label>
+                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${fetchedPropertyType || apartment_type}</div>
+                        </td>
+                        <td width="50%">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Room Selection</label>
+                            <div style="font-size: 15px; font-weight: 700; color: #0f172a;">${roomtype}</div>
+                        </td>
+                    </tr>
+                </table>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #f1f5f9;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 12px;">Package Includes</label>
+                    <div style="font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.6;">
+                        <span style="color: #f4a01e; margin-right: 8px;">✦</span> Accommodation<br>
+                        ${formatServices(services).split(',').map(s => `<span style="color: #f4a01e; margin-right: 8px;">✦</span> ${s.trim()}`).join('<br>')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Billing -->
+        <div style="background: #f59e0b; border-radius: 24px; padding: 40px; color: white; margin-bottom: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td align="left" valign="top" class="stack-cell">
+                        <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.4);">
+                            METHOD: ${modeofpayment}
+                        </div>
+                        <div style="display: inline-block; background: white; color: #f4a01e; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.1em;">
+                            VERIFIED
+                        </div>
+                        <div style="margin-top: 16px; text-align: left;">
+                             <p style="margin: 0; font-size: 13px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.1em;">Status: Confirmed</p>
+                        </div>
+                    </td>
+                    <td align="right" valign="top" class="stack-cell mobile-text-left" style="padding-top: 20px;">
+                        <p style="margin: 0; font-size: 12px; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.2em;">Projected Billing Total</p>
+                        ${modeofpayment === "Bill to Company" ? 
+                            `<h3 style="margin: 12px 0 0 0; font-size: 32px; font-weight: 900; color: #ffffff;">${tariff_type}</h3>` : 
+                            `
+                            <h3 style="margin: 12px 0 0 0; font-size: 44px; font-weight: 900; color: #ffffff; letter-spacing: -0.02em;">₹ ${(amount * chargeabledays).toLocaleString('en-IN')}</h3>
+                            <div style="margin-top: 12px; font-size: 14px; color: rgba(255,255,255,0.8); font-weight: 600;">
+                                Base: ₹ ${base_rate} • Tax: ${taxes}% (₹ ${(base_rate * taxes / 100).toFixed(2)}) • Per Night: ₹ ${amount}
+                            </div>
+                            `
+                        }
+                        <p style="margin: 16px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 600; font-style: italic;">* Figures include current applicable GST and service rates.</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div style="padding: 25px; background: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 40px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 13px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Terms & Conditions</h3>
+            <div style="font-size: 12px; color: #475569; line-height: 1.8;">
+                1. Check in & Check out Time 14:00 PM & 11:00 AM<br>
+                2. Every guest will have to carry a print of the confirmation along with the company and government photo ID at the time of checking in.<br>
+                3. Visitors are permitted in the apartment only between 10:00 AM and 7:00 PM and maximum of One visitor per day is allowed. Prior email approval from the company admin is required.<br>
+                4. Cancellation Terms: Kindly visit <a href="https://www.pajasaapartments.com/terms-and-conditions/" style="color: #f4a01e; text-decoration: none; font-weight: 700;">pajasaapartments.com/terms-and-conditions</a>
+            </div>
+        </div>
+
+        <!-- Footer Links -->
+        <div style="background-color: #f59e0b; padding: 20px; border-radius: 12px; text-align: center;">
+            <div style="margin-bottom: 10px;">
+                <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Mumbai</a>
+                <a href="https://www.pajasaapartments.com/in/pune/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Pune</a>
+                <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Bangalore</a>
+                <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Hyderabad</a>
+            </div>
+            <div>
+                <a href="http://pajasaapartments.com/in/noida/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Noida</a>
+                <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Delhi</a>
+                <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Gurgaon</a>
+                <a href="https://www.pajasaapartments.com/in/chennai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Chennai</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
+            <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
+            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+        </div>
+    </div>
+</body>
+</html>`;
+
+const generateApartmentEmailHtml = ({
+    reservationNo,
+    hostName,
+    Title,
+    address1,
+    address2,
+    address3,
+    contactperson,
+    contactnumber,
+    guestname,
+    contactnumberguest,
+    guesttype,
+    originalBooking,
+    modificationType,
+    checkin,
+    checkout,
+    chargeabledays,
+    fetchedPropertyType,
+    apartment_type,
+    roomtype,
+    occupancy,
+    host_payment_mode,
+    hostPaymentDetails,
+    services
+}) => `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #ffffff; font-family: 'Inter', Arial, sans-serif; color: #0f172a; }
+        .container { width: 100%; max-width: 700px; margin: 0 auto; background-color: #ffffff; }
+        @media only screen and (max-width: 600px) {
+            .container { width: 100% !important; }
+            .grid-col { display: block !important; width: 100% !important; margin-bottom: 20px; }
+            .stack-cell { display: block !important; width: 100% !important; text-align: left !important; padding: 10px 0 !important; }
+            .mobile-hide { display: none !important; }
+            .mobile-text-left { text-align: left !important; }
+            .billing-content { padding: 25px !important; }
+            .billing-title { font-size: 32px !important; }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Inter', Arial, sans-serif; color: #0f172a;">
+    <div class="container" style="width: 100%; max-width: 700px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+        <!-- Header -->
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #1e293b; padding-bottom: 28px; margin-bottom: 40px;">
+            <tr>
+                <td align="left" valign="bottom">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 44px; height: 44px; background: #f4a01e; border-radius: 10px; display: inline-block; text-align: center; line-height: 44px; color: white; font-weight: 900; font-size: 22px; vertical-align: middle;">PA</div>
+                        <div style="display: inline-block; vertical-align: middle; margin-left: 10px;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em; text-transform: uppercase;">APARTMENT BOOKING</h1>
+                            <p style="margin: 4px 0 0 0; color: #334155; font-size: 14px; font-weight: 600;">Apartment ${Title}</p>
+                        </div>
+                    </div>
+                </td>
+                <td align="right" valign="bottom">
+                    <p style="margin: 0; font-size: 11px; font-weight: 800; color: #f4a01e; text-transform: uppercase; letter-spacing: 0.12em;">Reservation ID</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 900; color: #0f172a;">${reservationNo}</p>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Welcome Message -->
+        <div style="margin-bottom: 35px; padding: 25px; background: #f8fafc; border-radius: 16px; border-left: 6px solid #f4a01e;">
+            <p style="margin: 0; font-size: 18px; color: #1e293b; line-height: 1.5; font-weight: 700;">
+                Hi <span style="color: #f4a01e;">${hostName}</span>,
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 15px; color: #475569; line-height: 1.6;">
+                PAJASA has successfully updated a booking at your property. ${Title}. We are happy to confirm the booking with the following details.
+            </p>
+        </div>
+
+        <!-- Section 1: Host & Property Profile -->
+        <div style="border: 2px solid #cbd5e1; border-radius: 16px; overflow: hidden; margin-bottom: 32px;">
+            <div style="background: #f1f5f9; padding: 16px 24px; border-bottom: 2px solid #cbd5e1;">
+                <h2 style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.08em;">1. Host & Property Profile</h2>
+            </div>
+            <div style="padding: 24px;">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td width="50%" valign="top" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Host Name</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${hostName}</div>
+                        </td>
+                        <td width="50%" valign="top" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Contact Person</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${contactperson}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="50%" valign="top">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Contact Number</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #f4a01e;">${contactnumber}</div>
+                        </td>
+                        <td width="50%" valign="top">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Apartment Address</label>
+                            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${address1}, ${address2}</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2: Stay Schedule -->
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
+            <tr>
+                <td width="65%" valign="top" style="padding-right: 20px;">
+                    <div style="border: 2px solid #cbd5e1; border-radius: 16px; overflow: hidden; height: 100%;">
+                        <div style="background: #f1f5f9; padding: 16px 24px; border-bottom: 2px solid #cbd5e1;">
+                            <h2 style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.08em;">2. Stay Schedule</h2>
+                        </div>
+                        <div style="padding: 24px;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-In</label>
+                                ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
+                                    <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
+                                ` : `
+                                    <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatDateExact(checkin, true)}</div>
+                                `}
+                            </div>
+                            <div style="border-top: 2px dashed #e2e8f0; padding-top: 16px;">
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-Out</label>
+                                ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
+                                    <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
+                                ` : `
+                                    <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${formatDateExact(checkout, false)}</div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td width="35%" valign="top">
+                    <div style="border: 2px solid #f4a01e; border-radius: 16px; padding: 20px; text-align: center; background: #fffbeb; margin-bottom: 16px;">
+                        <div style="font-size: 11px; font-weight: 900; color: #f4a01e; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Total Stay</div>
+                        <div style="font-size: 24px; font-weight: 900; color: #92400e;">${chargeabledays} <span style="font-size: 14px; font-weight: 700;">Nights</span></div>
+                    </div>
+                    <div style="border: 2px solid #7e22ce; border-radius: 16px; padding: 20px; text-align: center; background: #f5f3ff;">
+                        <div style="font-size: 11px; font-weight: 900; color: #7e22ce; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Guest Count</div>
+                        <div style="font-size: 24px; font-weight: 900; color: #581c87;">${formatOccupancy(occupancy)}</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Section 3: Booking Details -->
+        <div style="border: 2px solid #cbd5e1; border-radius: 16px; overflow: hidden; margin-bottom: 32px;">
+            <div style="background: #f1f5f9; padding: 16px 24px; border-bottom: 2px solid #cbd5e1;">
+                <h2 style="margin: 0; font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.08em;">3. Guest & Residence Information</h2>
+            </div>
+            <div style="padding: 24px;">
+                <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td width="50%" valign="top" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Guest Name</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${guestname}</div>
+                        </td>
+                        <td width="50%" valign="top" style="padding-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Guest Contact</label>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${contactnumberguest || 'N/A'}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="50%" valign="top">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Guest Type</label>
+                            <div style="font-size: 15px; font-weight: 700; color: #0f172a;">${guesttype}</div>
+                        </td>
+                        <td width="50%" valign="top">
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Room Selection / Property</label>
+                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${roomtype} / ${fetchedPropertyType || apartment_type}</div>
+                        </td>
+                    </tr>
+                </table>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #f1f5f9;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 12px;">Package Includes</label>
+                    <div style="font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.6;">
+                        <span style="color: #f4a01e; margin-right: 8px;">✦</span> Accommodation<br>
+                        ${formatServices(services).split(',').map(s => `<span style="color: #f4a01e; margin-right: 8px;">✦</span> ${s.trim()}`).join('<br>')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Billing -->
+        <div style="background: #f59e0b; border-radius: 24px; padding: 40px; color: white; margin-bottom: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td align="left" valign="top" class="stack-cell">
+                        <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.4);">
+                            METHOD: ${host_payment_mode}
+                        </div>
+                        <div style="display: inline-block; background: white; color: #f4a01e; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.1em;">
+                            VERIFIED
+                        </div>
+                        <div style="margin-top: 16px; text-align: left;">
+                             <p style="margin: 0; font-size: 13px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.1em;">Status: Confirmed</p>
+                        </div>
+                    </td>
+                    <td align="right" valign="top" class="stack-cell mobile-text-left" style="padding-top: 20px;">
+                        <p style="margin: 0; font-size: 12px; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.2em;">Billing Summary</p>
+                        <div style="margin-top: 12px; font-size: 15px; color: #ffffff; font-weight: 600; line-height: 1.6;">
+                            ${hostPaymentDetails}
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div style="padding: 25px; background: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 40px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 13px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Terms & Conditions</h3>
+            <div style="font-size: 12px; color: #475569; line-height: 1.8;">
+                1. Check in & Check out Time 14:00 PM & 11:00 AM<br>
+                2. Every guest will have to carry a print of the confirmation along with government photo ID at the time of checking in.<br>
+                3. Visitors are permitted in the apartment only between 10:00 AM and 7:00 PM and maximum of One visitor per day is authorized.<br>
+                4. Cancellation Terms: Kindly visit <a href="https://www.pajasaapartments.com/terms-and-conditions/" style="color: #f4a01e; text-decoration: none; font-weight: 700;">pajasaapartments.com/terms-and-conditions</a>
+            </div>
+        </div>
+
+        <!-- Footer Links -->
+        <div style="background-color: #f4a01e; padding: 20px; border-radius: 12px; text-align: center;">
+            <div style="margin-bottom: 10px;">
+                <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Mumbai</a>
+                <a href="https://www.pajasaapartments.com/in/pune/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Pune</a>
+                <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Bangalore</a>
+                <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Hyderabad</a>
+            </div>
+            <div>
+                <a href="http://pajasaapartments.com/in/noida/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Noida</a>
+                <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Delhi</a>
+                <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Gurgaon</a>
+                <a href="https://www.pajasaapartments.com/in/chennai/" style="font-size: 13px; color: white; margin: 0 8px; text-decoration: none; font-weight: 700;">Chennai</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
+            <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Host Support Services</div>
+            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+        </div>
+    </div>
+</body>
+</html>`;
 
 export async function sendEmail(req, res) {
     try {
@@ -265,595 +1364,36 @@ export async function sendEmail(req, res) {
                 ? additionalGuests.map(g => formatDateExact(g.cod, false)).join("<br>")
                 : "";
 
-        console.log("additionalGuestsHtml", additionalGuestsHtml);
-
-
-
-
-
-
-
-        const GUEST_TEMPLATE_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <style>
-        @media only screen and (max-width: 600px) {
-            .main-t { width: 100% !important; max-width: 100% !important; }
-            .stack-t { width: 100% !important; display: block !important; margin-bottom: 10px; }
-            .stack-c { display: block !important; width: 100% !important; box-sizing: border-box; }
-            .img-fix { max-width: 100% !important; height: auto !important; }
-            .pad-fix { padding: 10px !important; }
-            .center-m { text-align: center !important; }
-        }
-    </style>
-</head>
-<body style="margin: 0; padding: 0;">
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ffffff">
-        <tr>
-            <td align="center">
-                
-                <!-- HEADER (Logo & Date) -->
-                <table class="main-t" width="630" align="center" border="0" cellpadding="0" cellspacing="0">
-                    <tbody>
-                        <tr>
-                            <td width="100%">
-                                <table width="100%" align="left" border="0" cellpadding="0" cellspacing="0">
-                                    <tbody>
-                                        <tr>
-                                            <td class="stack-c center-m" align="left" bgcolor="#ffffff" width="40%">
-                                                <a>
-                                                    <img width="120" border="0" alt="" style="display:block;border:none;outline:none;text-decoration:none" src="https://ci3.googleusercontent.com/meips/ADKq_NYKoMISuvorFIpkwyNeleh158If7bBLNRWg1Ad_3zcs0sq0ivLeKz6svCPsRAdZvz3cXQ65U1--NOMCpIoKot9DPz6V7JAtvgsxKwJ8OFa2IRjJ2lgYhFKs4A=s0-d-e1-ft#https://www.pajasaapartments.com/wp-content/uploads/2019/08/logo.png" class="CToWUd" data-bit="iit" jslog="138226; u014N:xr6bB; 53:WzAsMl0.">
-                                                </a>
-                                            </td>
-                                            <td class="stack-c center-m" width="45%" valign="middle" align="right">
-                                                <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Booked on: <span style="font-size:12px tahoma;color:#858585;margin:0;padding-bottom:5px">${formatted}</span></p>
-                                                <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Reservation No.: <span style="color:#f59f0d;font-weight:bold;font-size:12px tahoma">${reservationNo}</span>
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr><td><hr></td></tr>
-                    </tbody>
-                </table>
-
-                <!-- MAIN CONTENT -->
-                <table class="main-t" width="630" cellpadding="0" cellspacing="0" border="0" align="center" style="background:#ffffff;margin:0 auto">
-                    <tbody>
-                        <tr>
-                            <td width="100%" style="padding:20px">
-                                <table width="100%" align="left" cellpadding="0" cellspacing="0" border="0">
-                                    <tbody>
-                                        <tr>
-                                            <td>
-                                                <h1 style="font-family:tahoma;font-size:35px;color:#333333;text-align:left;line-height:1.3">
-                                                    ${Title}
-                                                </h1>
-                                                <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Hi, <br><br>Thank you for choosing this Apartment</p><br>
-                                                <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                    We are happy to confirm booking with following details :
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                    </tbody>
-
-                    <tbody>
-                        <tr>
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="padding:0px 0">
-                                                <!-- Address Table -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0" id="m_-127422732672041899m_-4314589597065577272">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px;color:#858585">
-                                                                <p style="color:#3b7dc0;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:20px;margin-top:0;margin-bottom:5px;font-weight:normal"><a style="color:#f59f0d;font-weight:bold">Apartment Address</a></p>
-                                                                <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${address1},${address2}, <br>${address3}</p>
-                                                                <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">Contact Person: ${contactperson} </p>
-                                                                <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">Contact Number: <a style="color:#858585"></a><a href="tel:%207669990203" target="_blank"> <span style="font-family:tahoma;font-size:14px;color:#858585">NA</span></a></p>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <!-- Image Table -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 20px 5px 0">
-                                                                <a href="https://www.pajasaapartments.com/?p=8825" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://www.pajasaapartments.com/?p%3D8825&amp;source=gmail&amp;ust=1765384314609000&amp;usg=AOvVaw1gIXtdl-yTOJ_HhrsP_LEN">
-                                                                    <img class="img-fix" id="m_-127422732672041899m_-4314589597065577272abc" src="https://ci3.googleusercontent.com/meips/ADKq_Nan-x-C5r-OHd8YR-3NqovJfgaFO0gQmT4ULFq13R2wS5p2jEI08z4Ko_ATD0PUvdQar4Yf-0NIp0XMGZpEnRCxluu1XfVjAq4nYbyjYUVZ1zhJD2TDthP8ChOck3aKWHoOA3qVF9Uo_HEjefi_XkXBu-LRR0TFY8vRVZRnWp1kia87ZNe1A4g4HdD2Ah8phfTaPVSCK7om=s0-d-e1-ft#https://www.pajasaapartments.com/wp-content/uploads/2019/04/3-BHK-Service-Apartment-in-Kanjurmarg-west-in-Mumbai-living-room1.jpg" width="260" alt="Service Apartment" class="CToWUd" data-bit="iit" jslog="138226; u014N:xr6bB; 53:WzAsMl0.">
-                                                                </a>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                <!-- Guest Name -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="270" align="left">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <img style="float:left;padding-right:10px" src="https://ci3.googleusercontent.com/meips/ADKq_NbRo2H3Om_l08yyqDfKMG-HDwxSimiG6UhMkLlaa6e4Uck3degXgdbVVBncdRlOkf-t2KieZgzx326aKca1lVijDqLD7rMiLKYT2CQ=s0-d-e1-ft#http://gos3.ibcdn.com/hjuls8bqkp4op248fja84esc003i.png" class="CToWUd" data-bit="iit">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Guest Name</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${guestname}</span>
-                                                                                <br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <!-- Contact Number -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="270" align="left">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td>
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Contact Number</p>
-                                                                                <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${contactnumberguest}</p>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                <!-- Check In -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="270" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td>
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Check In</p>
-                                                                                ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
-                                                                                    <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
-                                                                                        <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
-                                                                                        <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                            ${formatDateExact(originalBooking.old_check_in_date, true)}
-                                                                                        </span>
-                                                                                        <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
-                                                                                        <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                            ${formatDateExact(checkin, true)}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                ` : `
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        ${formatDateExact(checkin, true)} 
-                                                                                    </span>
-                                                                                `}
-                                                                                <br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <!-- Check Out -->
-                                                ${additionalGuestsHtml ? `
-                                                        <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="270" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <p style="font:bold 12px tahoma;color:${(Preponed || isExtended) ? 'red' : '#333333'}">${Preponed ? 'Preponed Check Out Date' : 'Extended Check Out Date'}</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${additionalGuestsHtml}</span>
-                                                                                    <br>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Previous Check Out</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${formatDateExact(checkout, false)}</span>
-                                                                                    <br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                `: `
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="270" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Check Out</p>
-                                                                                ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
-                                                                                    <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
-                                                                                        <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
-                                                                                        <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                            ${formatDateExact(originalBooking.old_check_out_date, false)}
-                                                                                        </span>
-                                                                                        <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
-                                                                                        <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                            ${formatDateExact(checkout, false)}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                ` : `
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        ${formatDateExact(checkout, false)}
-                                                                                    </span>
-                                                                                `}
-                                                                                <br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>`}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                <!-- Chargeable Days -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Chargeable Days</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${chargeabledays}</span>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <!-- Amount -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td>
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Amount</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${paymentDetails}
-                                                                                </span>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                <!-- Mode of Payment -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Mode of Payment</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${modeofpayment}</span>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <!-- Client Name -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td>
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Client Name</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${clientName}</span>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                <!-- Room Type -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Property Type</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:red;font-weight:bold;margin:0;padding-bottom:5px">${fetchedPropertyType || apartment_type}</span>
-                                                                                <br><br>
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Room Type</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${roomtype}</span>
-                                                                                <br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <!-- Occupancy -->
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Occupancy</p>
-                                                                                <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${formatOccupancy(occupancy)}</span>
-                                                                                <br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <!-- Inclusions - 170 and 370 px tables -->
-                        <tr>
-                            <td width="100%" style="padding:0 30.0px">
-                                <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                    <tbody>
-                                        <tr>
-                                            <td style="border-bottom:1.0px solid rgb(216,216,216);padding:15.0px 0" width="100%">
-                                                <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="170">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style="padding:5.0px 0" align="left" width="100%">
-                                                                <table cellpadding="0" cellspacing="0" width="100%">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="30%"><span style="color:rgb(74,74,74)"><b><span style="font-family:Helvetica,arial,sans-serif"><span style="color:#f59f0d;font-weight:bold">Inclusions</span></span></b></span><br></td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="370">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style="padding:5.0px 0" align="left" width="100%">
-                                                                <table cellpadding="0" cellspacing="0" width="100%">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td>
-                                                                                <span style="color:rgb(74,74,74)"><span style="font-family:tahoma;font-size:13px;color:#858585;margin:0;padding-bottom:5px">Accommodation,${formatServices(services)} </span></span><br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                        <!-- Terms & Conditions -->
-                        <tr>
-                            <td width="100%" style="padding:0 30.0px">
-                                <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                    <tbody>
-                                        <tr>
-                                            <td style="padding:15.0px 0" width="100%">
-                                                <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="170">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style="padding:5.0px 0" align="left" width="100%">
-                                                                <table cellpadding="0" cellspacing="0" width="100%">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="30%"><span style="color:rgb(74,74,74)"><b><span style="font-family:Helvetica,arial,sans-serif"><span style="color:#f59f0d;font-weight:bold">Terms &amp; Conditions :</span></span></b></span><br></td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                                <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="370">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style="padding-bottom:5.0px" align="left" width="100%">
-                                                                <table cellpadding="0" cellspacing="0" width="100%">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td>
-                                                                                <p style="font-family:tahoma;font-size:13px;color:#858585;margin:0;padding-bottom:5px;text-align:justify">
-                                                                                    <span style="color:rgb(74,74,74)"><span style="font-family:Helvetica,arial,sans-serif"><span style="font-family:tahoma;font-size:13px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        1. Check in & Check out Time 14:00 PM & 11:00 AM <br>
-                                                                                        2. Every guest will have to carry a print of the confirmation along with the company and government photo ID at the time of checking in.<br>
-                                                                                        3. Visitors are permitted in the apartment only between 10:00 AM and 7:00 PM  and maximum of One visitors per day is allowed for each apartment. With Prior email approval from the concerned company admin is required for any visitor entry.<br>
-                                                                                        4. Cancellation Terms: Kindly visit PAJASA website for cancelation terms & Conditions.  https://www.pajasaapartments.com/terms-and-conditions/
-                                                                                    </span></span></span><br>
-                                                                                </p>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <!-- Footer Links -->
-                        <tr>
-                            <td style="padding:0 30px"></td>
-                        </tr>
-                        <tr style="background-color:#f59f0d">
-                            <td style="padding:0 30px" width="100%">
-                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                    <tbody>
-                                        <tr>
-                                            <td width="100%" style="padding:15px 0">
-                                                <table width="100%" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="100%" align="left" style="padding:5px 0;color:black;text-align:-webkit-center">
-                                                                <table width="90%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr style="text-align:-webkit-center">
-                                                                            <td>
-                                                                                <div>
-                                                                                    <div style="display:-webkit-box; display:flex; flex-wrap:wrap; justify-content:center; gap: 10px;">
-                                                                                        <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Mumbai</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/pune/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Pune</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Bangalore</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Hyderabad</a>&nbsp;&nbsp;
-                                                                                        <a href="http://pajasaapartments.com/in/noida/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Noida</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Delhi</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Gurgaon</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/chennai/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Chennai</a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-
-                    </tbody>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>`;
+        const guestHtml = generateGuestEmailHtml({
+            guestname,
+            reservationNo,
+            formatted,
+            checkin,
+            checkout,
+            check_in_time,
+            check_out_time,
+            contactnumberguest,
+            additionalGuestsHtml,
+            chargeabledays,
+            occupancy,
+            address1,
+            address2,
+            address3,
+            fetchedPropertyType,
+            apartment_type,
+            roomtype,
+            services,
+            modeofpayment,
+            amount,
+            base_rate,
+            taxes,
+            tariff_type,
+            clientName,
+            guestemail,
+            originalBooking,
+            modificationType,
+            Title
+        });
 
 
 
@@ -904,18 +1444,59 @@ export async function sendEmail(req, res) {
         }
 
         // -----------------------------
-        // 2️⃣ SEND EMAIL TO GUEST
         // -----------------------------
+        const guestPdfHtml = generateGuestPdfHtml({
+            guestname,
+            reservationNo,
+            formatted,
+            checkin,
+            checkout,
+            check_in_time,
+            check_out_time,
+            contactnumberguest,
+            additionalGuestsHtml,
+            chargeabledays,
+            occupancy,
+            address1,
+            address2,
+            address3,
+            fetchedPropertyType,
+            apartment_type,
+            roomtype,
+            services,
+            modeofpayment,
+            amount,
+            base_rate,
+            taxes,
+            tariff_type,
+            clientName,
+            guestemail,
+            originalBooking,
+            modificationType,
+            Title
+        });
+
+        const guestPdfBuffer = await generatePdfBuffer(guestPdfHtml);
+        console.log(`✅ Guest PDF generated. Size: ${guestPdfBuffer.length} bytes`);
+        
         const guestResult = await resend.emails.send({
             from: "hosting@pajasa.com",
             to: emailList,
             // to: ["harshitshukla6388@gmail.com"],
             subject,
-            html: GUEST_TEMPLATE_HTML,
-            attachments
+            html: guestHtml,
+            attachments: [
+                {
+                    filename: `Guest_Booking_${reservationNo}.pdf`,
+                    content: Buffer.from(guestPdfBuffer),
+                },
+            ],
         });
 
+        console.log("Resend Guest Email Result:", JSON.stringify(guestResult, null, 2));
+
         if (guestResult.error) {
+            console.error("Resend Guest Email Error:", guestResult.error);
             return res.status(400).json({ error: guestResult.error });
         }
 
@@ -1016,597 +1597,89 @@ async function sendEmailtoApartment(
     } else if (Title.includes("Modified")) {
         subject2 = `Apartments Booking Modified (${reservationNo})`;
     }
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <style>
-        @media only screen and (max-width: 600px) {
-            .main-t { width: 100% !important; max-width: 100% !important; }
-            .stack-t { width: 100% !important; display: block !important; margin-bottom: 10px; }
-            .stack-c { display: block !important; width: 100% !important; box-sizing: border-box; }
-            .img-fix { max-width: 100% !important; height: auto !important; }
-            .pad-fix { padding: 10px !important; }
-            .center-m { text-align: center !important; }
-        }
-    </style>
-</head>
-<body style="margin: 0; padding: 0;">
-    <div class="email-container" style="background-color:#ffffff; width:100%;">
-        <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ffffff">
-            <tr>
-                <td align="center">
-                    
-                    <!-- HEADER -->
-                    <table class="main-t" width="630" align="center" border="0" cellpadding="0" cellspacing="0">
-                        <tbody>
-                            <tr>
-                                <td width="100%">
-                                    <table width="100%" align="left" border="0" cellpadding="0" cellspacing="0">
-                                        <tbody>
-                                            <tr>
-                                                <td class="stack-c center-m" align="left" bgcolor="#ffffff" width="40%">
-                                                    <a>
-                                                        <img width="120" border="0" alt="" style="display:block;border:none;outline:none;text-decoration:none" src="https://ci3.googleusercontent.com/meips/ADKq_NYKoMISuvorFIpkwyNeleh158If7bBLNRWg1Ad_3zcs0sq0ivLeKz6svCPsRAdZvz3cXQ65U1--NOMCpIoKot9DPz6V7JAtvgsxKwJ8OFa2IRjJ2lgYhFKs4A=s0-d-e1-ft#https://www.pajasaapartments.com/wp-content/uploads/2019/08/logo.png" class="CToWUd" data-bit="iit" jslog="138226; u014N:xr6bB; 53:WzAsMl0.">
-                                                    </a>
-                                                </td>
-                                                <td class="stack-c center-m" width="45%" valign="middle" align="right">
-                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Booked on: <span style="font-size:12px tahoma;color:#858585;margin:0;padding-bottom:5px">${formatted}</span></p>
-                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Reservation No.: <span style="color:#f59f0d;font-weight:bold;font-size:12px tahoma">${reservationNo}</span></p>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-                            <tr><td><hr></td></tr>
-                        </tbody>
-                    </table>
-
-                    <!-- MAIN CONTENT -->
-                    <table class="main-t" width="630" cellpadding="0" cellspacing="0" border="0" align="center" style="background:#ffffff;margin:0 auto">
-                        <tbody>
-                            <tr>
-                                <td width="100%" style="padding:20px">
-                                    <table width="100%" align="left" cellpadding="0" cellspacing="0" border="0">
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <h1 style="font-family:tahoma;font-size:35px;color:#333333;text-align:left;line-height:1.3">
-                                                        ${Title}
-                                                    </h1>
-                                                    <p style="font:bold 12px tahoma;color:#333333;margin:0;padding-bottom:5px">Hi, ${hostName} <br>
-                                                    <br>Thank you for the confirmation</p><br>
-                                                    <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                        We are happy to confirm booking with following details :
-                                                    </p>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-                        </tbody>
-
-                        <tbody>
-                            <tr>
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="padding:0px 0">
-                                                    <!-- Address -->
-                                                    <table class="stack-t" width="290" align="left" border="0" cellpadding="0" cellspacing="0" id="m_2450834815802175052m_-6000102758310738402">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px;color:#858585">
-                                                                    <p style="color:#3b7dc0;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:20px;margin-top:0;margin-bottom:5px;font-weight:normal"><a style="color:#f59f0d;font-weight:bold">Apartment Address</a></p>
-                                                                    <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${address1},${address2} <br> ${address3}</p>
-                                                                    <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">Contact Person: ${contactperson} </p>
-                                                                    <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">Contact Number: <a style="color:#858585"></a><a href="tel:${contactnumber}" target="_blank"> <span style="font-family:tahoma;font-size:14px;color:#858585">${contactnumber}</span></a></p>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <!-- Image -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 20px 5px 0">
-                                                                    <a href="https://www.pajasaapartments.com/?p=8825" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://www.pajasaapartments.com/?p%3D8825&amp;source=gmail&amp;ust=1765475165922000&amp;usg=AOvVaw1mVcIzWsoVD9OwdnFrW9N-">
-                                                                        <img class="img-fix" id="m_2450834815802175052m_-6000102758310738402abc" src="https://ci3.googleusercontent.com/meips/ADKq_Nan-x-C5r-OHd8YR-3NqovJfgaFO0gQmT4ULFq13R2wS5p2jEI08z4Ko_ATD0PUvdQar4Yf-0NIp0XMGZpEnRCxluu1XfVjAq4nYbyjYUVZ1zhJD2TDthP8ChOck3aKWHoOA3qVF9Uo_HEjefi_XkXBu-LRR0TFY8vRVZRnWp1kia87ZNe1A4g4HdD2Ah8phfTaPVSCK7om=s0-d-e1-ft#https://www.pajasaapartments.com/wp-content/uploads/2019/04/3-BHK-Service-Apartment-in-Kanjurmarg-west-in-Mumbai-living-room1.jpg" width="260" alt="Service Apartment" class="CToWUd" data-bit="iit" jslog="138226; u014N:xr6bB; 53:WzAsMl0.">
-                                                                    </a>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                    <!-- Guest Name -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="270" align="left">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <img style="float:left;padding-right:10px" src="https://ci3.googleusercontent.com/meips/ADKq_NbRo2H3Om_l08yyqDfKMG-HDwxSimiG6UhMkLlaa6e4Uck3degXgdbVVBncdRlOkf-t2KieZgzx326aKca1lVijDqLD7rMiLKYT2CQ=s0-d-e1-ft#http://gos3.ibcdn.com/hjuls8bqkp4op248fja84esc003i.png" class="CToWUd" data-bit="iit">
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Guest Name</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${guestname}</span>
-                                                                                    <br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <!-- Contact Number -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="270" align="left">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Contact Number</p>
-                                                                                    <p style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${contactnumberguest}</p>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                    <!-- Check In -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="270" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Check In</p>
-                                                                                    ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
-                                                                                        <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
-                                                                                            <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
-                                                                                            <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                                ${formatDateExact(originalBooking.old_check_in_date, true)}
-                                                                                            </span>
-                                                                                            <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
-                                                                                            <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                                ${formatDateExact(checkin, true)}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    ` : `
-                                                                                        <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                            ${formatDateExact(checkin, true)} 
-                                                                                        </span>
-                                                                                    `} <br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <!-- Check Out -->
-                                                    ${additionalGuestsHtml ? `
-                                                        <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="270" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <p style="font:bold 12px tahoma;color:${(Preponed || Title.includes('Extended')) ? 'red' : '#333333'}">${Preponed ? 'Preponed Check Out Date' : 'Extended Check Out Date'}</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${additionalGuestsHtml}</span>
-                                                                                    <br>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Previous Check Out</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${formatDateExact(checkout, false)}</span>
-                                                                                    <br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    `: `
-                                                <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td width="270" align="left" style="padding:5px 0">
-                                                                <table width="100%" cellspacing="0" cellpadding="0">
-                                                                    <tbody>
-                                                                        <tr>
-                                                                            <td width="45%">
-                                                                                <p style="font:bold 12px tahoma;color:#333333">Check Out</p>
-                                                                                ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
-                                                                                    <div style="border:2px solid #f59f0d;border-radius:8px;padding:12px;margin-top:8px;background:#fff9f0">
-                                                                                        <p style="font:bold 10px tahoma;color:#666;margin:0 0 8px 0">Previous:</p>
-                                                                                        <span style="font-family:tahoma;font-size:13px;color:#999;text-decoration:line-through;display:block;margin-bottom:12px">
-                                                                                            ${formatDateExact(originalBooking.old_check_out_date, false)}
-                                                                                        </span>
-                                                                                        <p style="font:bold 10px tahoma;color:red;margin:0 0 8px 0">Current:</p>
-                                                                                        <span style="font-family:tahoma;font-size:16px;color:red;font-weight:bold;display:block">
-                                                                                            ${formatDateExact(checkout, false)}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                ` : `
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                        ${formatDateExact(checkout, false)} 
-                                                                                    </span>
-                                                                                `}
-                                                                                <br>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>`}
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                    <!-- Chargeable Days -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Chargeable Days</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${chargeabledays}</span>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <!-- Amount -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Amount</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${hostPaymentDetails}</span>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                    <!-- Mode of Payment -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Mode of Payment</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${host_payment_mode}</span>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <!-- Guest Type -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Guest Type</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${guesttype}</span>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="border-bottom:1px solid #d8d8d8;padding:15px 0">
-                                                    <!-- Room Type -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Property Type</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:red;font-weight:bold;margin:0;padding-bottom:5px">${fetchedPropertyType || apartment_type}</span>
-                                                                                    <br><br>
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Room Type</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${roomtype}</span>
-                                                                                    <br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <!-- Occupancy -->
-                                                    <table class="stack-t" width="270" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0">
-                                                                    <table width="100%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="45%">
-                                                                                    <p style="font:bold 12px tahoma;color:#333333">Occupancy</p>
-                                                                                    <span style="font-family:tahoma;font-size:14px;color:#858585;margin:0;padding-bottom:5px">${formatOccupancy(occupancy)}</span>
-                                                                                    <br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <!-- Inclusions -->
-                            <tr>
-                                <td width="100%" style="padding:0 30.0px">
-                                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                        <tbody>
-                                            <tr>
-                                                <td style="border-bottom:1.0px solid rgb(216,216,216);padding:15.0px 0" width="100%">
-                                                    <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="170">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td style="padding:5.0px 0" align="left" width="100%">
-                                                                    <table cellpadding="0" cellspacing="0" width="100%">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="30%"><span style="color:rgb(74,74,74)"><b><span style="font-family:Helvetica,arial,sans-serif"><span style="color:#f59f0d;font-weight:bold">Inclusions</span></span></b></span><br></td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="370">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td style="padding:5.0px 0" align="left" width="100%">
-                                                                    <table cellpadding="0" cellspacing="0" width="100%">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <span style="color:rgb(74,74,74)"><span style="font-family:tahoma;font-size:13px;color:#858585;margin:0;padding-bottom:5px">Accommodation,${formatServices(services)}</span></span><br>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <!-- Terms & Conditions -->
-                            <tr>
-                                <td width="100%" style="padding:0 30.0px">
-                                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                        <tbody>
-                                            <tr>
-                                                <td style="padding:15.0px 0" width="100%">
-                                                    <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="170">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td style="padding:5.0px 0" align="left" width="100%">
-                                                                    <table cellpadding="0" cellspacing="0" width="100%">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td width="30%"><span style="color:rgb(74,74,74)"><b><span style="font-family:Helvetica,arial,sans-serif"><span style="color:#f59f0d;font-weight:bold">Terms &amp; Conditions :</span></span></b></span><br></td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                    <table class="stack-t" cellspacing="0" cellpadding="0" border="0" align="left" width="370">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td style="padding-bottom:5.0px" align="left" width="100%">
-                                                                    <table cellpadding="0" cellspacing="0" width="100%">
-                                                                        <tbody>
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <p style="font-family:tahoma;font-size:13px;color:#858585;margin:0;padding-bottom:5px;text-align:justify">
-                                                                                        <span style="color:rgb(74,74,74)"><span style="font-family:Helvetica,arial,sans-serif"><span style="font-family:tahoma;font-size:13px;color:#858585;margin:0;padding-bottom:5px">
-                                                                                            1. Check in & Check out Time 14:00 PM & 11:00 AM <br>
-                                                                                            2. Every guest will have to carry a print of the confirmation along with the company and government photo ID at the time of checking in. <br>
-                                                                                            3. Visitors are permitted in the apartment only between 10:00 AM and 7:00 PM  and maximum of One visitors per day is allowed for each apartment. With Prior email approval from the concerned company admin is required for any visitor entry.<br>
-                                                                                            4. Cancellation Terms: Kindly visit PAJASA website for cancelation terms & Conditions.  https://www.pajasaapartments.com/terms-and-conditions/  
-                                                                                        </span></span></span><br>
-                                                                                    </p>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <!-- Footer -->
-                            <tr>
-                                <td style="padding:0 30px"></td>
-                            </tr>
-                            <tr style="background-color:#f59f0d">
-                                <td style="padding:0 30px" width="100%">
-                                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td width="100%" style="padding:15px 0">
-                                                    <table width="100%" align="left" border="0" cellpadding="0" cellspacing="0">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td width="100%" align="left" style="padding:5px 0;color:black;text-align:-webkit-center">
-                                                                    <table width="90%" cellspacing="0" cellpadding="0">
-                                                                        <tbody>
-                                                                            <tr style="text-align:-webkit-center">
-                                                                                <td>
-                                                                                    <div>
-                                                                                        <div style="display:-webkit-box; display:flex; flex-wrap:wrap; justify-content:center; gap: 10px;">
-                                                                                        <a href="https://www.pajasaapartments.com/in/mumbai/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Mumbai</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/pune/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Pune</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/bengaluru/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Bangalore</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/hyderabad/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Hyderabad</a>&nbsp;&nbsp;
-                                                                                        <a href="http://pajasaapartments.com/in/noida/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Noida</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/new-delhi/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Delhi</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/gurugram/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Gurgaon</a>&nbsp;&nbsp;
-                                                                                        <a href="https://www.pajasaapartments.com/in/chennai/" style="font-family:tahoma;font-size:14px;color:white;margin:0;padding-bottom:4px;text-decoration:none" target="_blank">Chennai</a>
-                                                                                    </div>
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                            </tr>
-
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </div>
-</body>
-</html>`;
-
-    const { data, error } = await resend.emails.send({
-        from: "hosting@pajasa.com",
-        to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-        // to: ["harshitshukla6388@gmail.com"],
-        subject: subject2,
-        html,
+    const html = generateApartmentEmailHtml({
+        reservationNo,
+        hostName,
+        Title,
+        address1,
+        address2,
+        address3,
+        contactperson,
+        contactnumber,
+        guestname,
+        contactnumberguest,
+        guesttype,
+        originalBooking,
+        modificationType,
+        checkin,
+        checkout,
+        chargeabledays,
+        fetchedPropertyType,
+        apartment_type,
+        roomtype,
+        occupancy,
+        host_payment_mode,
+        hostPaymentDetails,
+        services
     });
 
-    return { data, error };
+    const pdfHtml = generateApartmentPdfHtml({
+        reservationNo,
+        hostName,
+        Title,
+        address1,
+        address2,
+        address3,
+        contactperson,
+        contactnumber,
+        guestname,
+        contactnumberguest,
+        guesttype,
+        originalBooking,
+        modificationType,
+        checkin,
+        checkout,
+        chargeabledays,
+        fetchedPropertyType,
+        apartment_type,
+        roomtype,
+        occupancy,
+        host_payment_mode,
+        hostPaymentDetails,
+        services,
+        check_in_time,
+        check_out_time
+    });
+
+    try {
+        const aptPdfBuffer = await generatePdfBuffer(pdfHtml);
+        console.log(`✅ Apartment PDF generated. Size: ${aptPdfBuffer.length} bytes`);
+
+        const aptResult = await resend.emails.send({
+            from: "hosting@pajasa.com",
+            to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+            // to: "harshitshukla6388@gmail.com",
+            subject: subject2,
+            html,
+            // attachments: [
+            //     {
+            //         filename: `Apartment_Booking_${reservationNo}.pdf`,
+            //         content: Buffer.from(aptPdfBuffer),
+            //     },
+            // ],
+        });
+
+        console.log("Resend Apartment Email Result:", JSON.stringify(aptResult, null, 2));
+
+        if (aptResult.error) {
+            console.error("Resend API Error (Apartment):", JSON.stringify(aptResult.error, null, 2));
+        }
+
+        return aptResult;
+    } catch (err) {
+        console.error("sendEmailtoApartment Exception:", err);
+        return { data: null, error: err };
+    }
 }
 
 export async function sendCancellationEmail({
