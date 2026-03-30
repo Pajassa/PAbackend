@@ -197,10 +197,6 @@ const generateGuestPdfHtml = ({
                 <div class="value">${contactnumberguest || 'N/A'}</div>
             </div>
             <div style="grid-column: span 2;">
-                <label class="label">Email Address</label>
-                <div class="value">${guestemail}</div>
-            </div>
-            <div style="grid-column: span 2;">
                 <label class="label">Company / Business Name</label>
                 <div class="value">${clientName}</div>
             </div>
@@ -214,7 +210,7 @@ const generateGuestPdfHtml = ({
             </div>
             <div style="padding: 24px;">
                 <div style="margin-bottom: 20px;">
-                    <label class="label">Check-In</label>
+                    <label class="label">Check-in Date & Time</label>
                     ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
                         <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
                         <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
@@ -224,7 +220,7 @@ const generateGuestPdfHtml = ({
                     <div style="font-size: 14px; color: #f4a01e; font-weight: 800; margin-top: 4px;">Time: ${check_in_time}</div>
                 </div>
                 <div style="padding-top: 16px; border-top: 2px dashed #e2e8f0;">
-                    <label class="label">Check-Out</label>
+                    <label class="label">Check-out Date & Time</label>
                     ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
                         <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
                         <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
@@ -260,12 +256,12 @@ const generateGuestPdfHtml = ({
                 <div class="value">${address1}, ${address2}, ${address3}</div>
             </div>
             <div>
-                <label class="label">Property Category</label>
+                <label class="label">Property Type</label>
                 <div class="value">${fetchedPropertyType || apartment_type}</div>
             </div>
             <div>
                 <label class="label">Room Selection</label>
-                <div class="value">${roomtype}</div>
+                <div class="value">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Enter Apartment' : roomtype}</div>
             </div>
         </div>
     </div>
@@ -273,7 +269,7 @@ const generateGuestPdfHtml = ({
     <div class="billing-box">
         <div style="text-align: left; display: flex; flex-direction: column; gap: 15px;">
             <div style="background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); padding: 15px 30px; border-radius: 16px; display: table;">
-                <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">METHOD: ${modeofpayment}</span>
+                <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Mode Of Payment: ${modeofpayment}</span>
             </div>
             <div>
                 <span style="background: white; color: #f4a01e; padding: 6px 20px; border-radius: 50px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
@@ -316,7 +312,7 @@ const generateGuestPdfHtml = ({
 
     <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
         <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
-        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
     </div>
 </body>
 </html>
@@ -487,7 +483,7 @@ const generateApartmentPdfHtml = ({
                 <div class="value">${contactnumber}</div>
             </div>
             <div>
-                <label class="label">Property Category</label>
+                <label class="label">Property Type</label>
                 <div class="value">${fetchedPropertyType || apartment_type}</div>
             </div>
             <div style="grid-column: span 2;">
@@ -504,7 +500,7 @@ const generateApartmentPdfHtml = ({
             </div>
             <div style="padding: 24px;">
                 <div style="margin-bottom: 20px;">
-                    <label class="label">Check-In</label>
+                    <label class="label">Check-in Date & Time</label>
                     ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
                         <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
                         <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
@@ -514,7 +510,7 @@ const generateApartmentPdfHtml = ({
                     <div style="font-size: 14px; color: #f4a01e; font-weight: 800; margin-top: 4px;">Time: ${check_in_time}</div>
                 </div>
                 <div style="padding-top: 16px; border-top: 2px dashed #e2e8f0;">
-                    <label class="label">Check-Out</label>
+                    <label class="label">Check-out Date & Time</label>
                     ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
                         <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
                         <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
@@ -561,7 +557,7 @@ const generateApartmentPdfHtml = ({
      <div class="billing-box" style="padding: 40px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
         <div style="text-align: left; display: flex; flex-direction: column; gap: 15px;">
             <div style="background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); padding: 15px 30px; border-radius: 16px; display: table;">
-                <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">METHOD: ${host_payment_mode}</span>
+                <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Mode Of Payment: ${host_payment_mode}</span>
             </div>
             <div>
                 <span style="background: white; color: #f4a01e; padding: 6px 20px; border-radius: 50px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
@@ -595,7 +591,7 @@ const generateApartmentPdfHtml = ({
 
     <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
         <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
-        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
     </div>
 </body>
 </html>
@@ -704,10 +700,6 @@ const generateGuestEmailHtml = ({
                             <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Company / Business Name</label>
                             <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${clientName}</div>
                         </td>
-                        <td width="50%" valign="top">
-                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Email Address</label>
-                            <div style="font-size: 14px; font-weight: 700; color: #0f172a; word-break: break-all;">${guestemail}</div>
-                        </td>
                     </tr>
                 </table>
             </div>
@@ -723,7 +715,7 @@ const generateGuestEmailHtml = ({
                         </div>
                         <div style="padding: 24px;">
                             <div style="margin-bottom: 20px;">
-                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-In</label>
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-in Date & Time</label>
                                 ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
                                     <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
                                     <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
@@ -733,7 +725,7 @@ const generateGuestEmailHtml = ({
                                 <div style="font-size: 13px; color: #f4a01e; font-weight: 700; margin-top: 4px;">Time: ${check_in_time}</div>
                             </div>
                             <div style="border-top: 2px dashed #e2e8f0; padding-top: 16px;">
-                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-Out</label>
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-out Date & Time</label>
                                 ${additionalGuestsHtml ? `
                                     <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(checkout, false)}</div>
                                     <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${additionalGuestsHtml}</div>
@@ -776,7 +768,7 @@ const generateGuestEmailHtml = ({
                     </tr>
                     <tr>
                         <td width="50%">
-                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Property Category</label>
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Property Type</label>
                             <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${fetchedPropertyType || apartment_type}</div>
                         </td>
                         <td width="50%">
@@ -801,26 +793,26 @@ const generateGuestEmailHtml = ({
                 <tr>
                     <td align="left" valign="top" class="stack-cell">
                         <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.4);">
-                            METHOD: ${modeofpayment}
+                            Mode Of Payment: ${modeofpayment}
                         </div>
                         <div style="display: inline-block; background: white; color: #f4a01e; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.1em;">
                             VERIFIED
                         </div>
                         <div style="margin-top: 16px; text-align: left;">
-                             <p style="margin: 0; font-size: 13px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.1em;">Status: Confirmed</p>
+                             
                         </div>
                     </td>
                     <td align="right" valign="top" class="stack-cell mobile-text-left" style="padding-top: 20px;">
                         <p style="margin: 0; font-size: 12px; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.2em;">Projected Billing Total</p>
-                        ${modeofpayment === "Bill to Company" ? 
-                            `<h3 style="margin: 12px 0 0 0; font-size: 32px; font-weight: 900; color: #ffffff;">${tariff_type}</h3>` : 
-                            `
+                        ${modeofpayment === "Bill to Company" ?
+        `<h3 style="margin: 12px 0 0 0; font-size: 32px; font-weight: 900; color: #ffffff;">${tariff_type}</h3>` :
+        `
                             <h3 style="margin: 12px 0 0 0; font-size: 44px; font-weight: 900; color: #ffffff; letter-spacing: -0.02em;">₹ ${(amount * chargeabledays).toLocaleString('en-IN')}</h3>
                             <div style="margin-top: 12px; font-size: 14px; color: rgba(255,255,255,0.8); font-weight: 600;">
                                 Base: ₹ ${base_rate} • Tax: ${taxes}% (₹ ${(base_rate * taxes / 100).toFixed(2)}) • Per Night: ₹ ${amount}
                             </div>
                             `
-                        }
+    }
                         <p style="margin: 16px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 600; font-style: italic;">* Figures include current applicable GST and service rates.</p>
                     </td>
                 </tr>
@@ -856,7 +848,7 @@ const generateGuestEmailHtml = ({
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
             <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
-            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
         </div>
     </div>
 </body>
@@ -978,7 +970,7 @@ const generateApartmentEmailHtml = ({
                         </div>
                         <div style="padding: 24px;">
                             <div style="margin-bottom: 20px;">
-                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-In</label>
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-in Date & Time</label>
                                 ${originalBooking && (modificationType === 'preponed' || modificationType === 'postponed') ? `
                                     <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_in_date, true)}</div>
                                     <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkin, true)}</div>
@@ -987,7 +979,7 @@ const generateApartmentEmailHtml = ({
                                 `}
                             </div>
                             <div style="border-top: 2px dashed #e2e8f0; padding-top: 16px;">
-                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-Out</label>
+                                <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Check-out Date & Time</label>
                                 ${originalBooking && (modificationType === 'extended' || modificationType === 'shortened') ? `
                                     <div style="font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 4px;">${formatDateExact(originalBooking.old_check_out_date, false)}</div>
                                     <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${formatDateExact(checkout, false)}</div>
@@ -1034,8 +1026,8 @@ const generateApartmentEmailHtml = ({
                             <div style="font-size: 15px; font-weight: 700; color: #0f172a;">${guesttype}</div>
                         </td>
                         <td width="50%" valign="top">
-                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Room Selection / Property</label>
-                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${roomtype} / ${fetchedPropertyType || apartment_type}</div>
+                            <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Room Selection / Property Type</label>
+                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Enter Apartment' : roomtype} / ${fetchedPropertyType || apartment_type}</div>
                         </td>
                     </tr>
                 </table>
@@ -1055,13 +1047,13 @@ const generateApartmentEmailHtml = ({
                 <tr>
                     <td align="left" valign="top" class="stack-cell">
                         <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.4);">
-                            METHOD: ${host_payment_mode}
+                            Mode Of Payment: ${host_payment_mode}
                         </div>
                         <div style="display: inline-block; background: white; color: #f4a01e; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.1em;">
                             VERIFIED
                         </div>
                         <div style="margin-top: 16px; text-align: left;">
-                             <p style="margin: 0; font-size: 13px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.1em;">Status: Confirmed</p>
+                             
                         </div>
                     </td>
                     <td align="right" valign="top" class="stack-cell mobile-text-left" style="padding-top: 20px;">
@@ -1103,7 +1095,7 @@ const generateApartmentEmailHtml = ({
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
             <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Host Support Services</div>
-            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Premium Accommodation Partners</div>
+            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
         </div>
     </div>
 </body>
@@ -1478,11 +1470,11 @@ export async function sendEmail(req, res) {
 
         const guestPdfBuffer = await generatePdfBuffer(guestPdfHtml);
         console.log(`✅ Guest PDF generated. Size: ${guestPdfBuffer.length} bytes`);
-        
+
         const guestResult = await resend.emails.send({
             from: "hosting@pajasa.com",
-            to: emailList,
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: emailList,
+            to: ["harshitshukla6388@gmail.com"],
             subject,
             html: guestHtml,
             attachments: [
@@ -1657,8 +1649,8 @@ async function sendEmailtoApartment(
 
         const aptResult = await resend.emails.send({
             from: "hosting@pajasa.com",
-            to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-            // to: "harshitshukla6388@gmail.com",
+            // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+            to: "harshitshukla6388@gmail.com",
             subject: subject2,
             html,
             // attachments: [
@@ -1828,8 +1820,8 @@ export async function sendCancellationEmail({
 
         const result = await resend.emails.send({
             from: "hosting@pajasa.com",
-            to: guest_email.split(',').map(e => e.trim()),
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: guest_email.split(',').map(e => e.trim()),
+            to: ["harshitshukla6388@gmail.com"],
             subject: subject,
             html: html
         });
