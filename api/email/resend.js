@@ -163,8 +163,8 @@ const generateGuestPdfHtml = ({
         <div class="logo-box">
             <div class="logo-pa">PA</div>
             <div>
-                <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em;">GUEST BOOKING</h1>
-                <p style="margin: 6px 0 0 0; color: #334155; font-size: 16px; font-weight: 600;">Guest ${Title}</p>
+                <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em;">GUEST ${Title} </h1>
+                <p style="margin: 6px 0 0 0; color: #334155; font-size: 16px; font-weight: 600;">Extended Stay Apartment </p>
             </div>
         </div>
         <div style="text-align: right;">
@@ -271,16 +271,11 @@ const generateGuestPdfHtml = ({
             <div style="background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); padding: 15px 30px; border-radius: 16px; display: table;">
                 <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Mode Of Payment: ${modeofpayment}</span>
             </div>
-            <div>
-                <span style="background: white; color: #f4a01e; padding: 6px 20px; border-radius: 50px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    VERIFIED
-                </span>
-            </div>
+            
         </div>
         <div style="text-align: right; ${modeofpayment === 'Bill to Company' ? 'display: none;' : ''}">
-            <p style="margin: 0; font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.1em;">Projected Billing Total</p>
+            <p style="margin: 0; font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.1em;">Billing Summary</p>
             <h3 style="margin: 10px 0 0 0; font-size: 64px; font-weight: 900; color: #ffffff; letter-spacing: -0.04em;">₹ ${(amount * chargeabledays).toLocaleString('en-IN')}</h3>
-            <p style="margin: 12px 0 0 0; font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 600; font-style: italic; opacity: 0.9;">* Figures include current applicable GST and service rates.</p>
         </div>
     </div>
 
@@ -310,10 +305,7 @@ const generateGuestPdfHtml = ({
         </div>
     </div>
 
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
-        <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
-        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
-    </div>
+   
 </body>
 </html>
 `;
@@ -559,11 +551,7 @@ const generateApartmentPdfHtml = ({
             <div style="background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); padding: 15px 30px; border-radius: 16px; display: table;">
                 <span style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Mode Of Payment: ${host_payment_mode}</span>
             </div>
-            <div>
-                <span style="background: white; color: #f4a01e; padding: 6px 20px; border-radius: 50px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    VERIFIED
-                </span>
-            </div>
+            
         </div>
         <div style="text-align: right;">
             <p style="margin: 0; font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.1em;">Host Payment Summary</p>
@@ -589,10 +577,6 @@ const generateApartmentPdfHtml = ({
         </div>
     </div>
 
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
-        <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
-        <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
-    </div>
 </body>
 </html>
 `;
@@ -655,8 +639,8 @@ const generateGuestEmailHtml = ({
                     <div style="display: flex; align-items: center; gap: 16px;">
                         <div style="width: 44px; height: 44px; background: #f4a01e; border-radius: 10px; display: inline-block; text-align: center; line-height: 44px; color: white; font-weight: 900; font-size: 22px; vertical-align: middle;">PA</div>
                         <div style="display: inline-block; vertical-align: middle; margin-left: 10px;">
-                            <h1 style="margin: 0; font-size: 28px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em; text-transform: uppercase;">GUEST BOOKING</h1>
-                            <p style="margin: 4px 0 0 0; color: #334155; font-size: 14px; font-weight: 600;">Guest ${Title}</p>
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em; text-transform: uppercase;">GUEST ${Title}</h1>
+                            <p style="margin: 4px 0 0 0; color: #334155; font-size: 14px; font-weight: 600;">Extended Stay Apartment</p>
                         </div>
                     </div>
                 </td>
@@ -795,15 +779,13 @@ const generateGuestEmailHtml = ({
                         <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.4);">
                             Mode Of Payment: ${modeofpayment}
                         </div>
-                        <div style="display: inline-block; background: white; color: #f4a01e; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.1em;">
-                            VERIFIED
-                        </div>
+                        
                         <div style="margin-top: 16px; text-align: left;">
                              
                         </div>
                     </td>
                     <td align="right" valign="top" class="stack-cell mobile-text-left" style="padding-top: 20px;">
-                        <p style="margin: 0; font-size: 12px; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.2em;">Projected Billing Total</p>
+                        <p style="margin: 0; font-size: 12px; font-weight: 900; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.2em;">Billing Summary</p>
                         ${modeofpayment === "Bill to Company" ?
         `<h3 style="margin: 12px 0 0 0; font-size: 32px; font-weight: 900; color: #ffffff;">${tariff_type}</h3>` :
         `
@@ -813,7 +795,6 @@ const generateGuestEmailHtml = ({
                             </div>
                             `
     }
-                        <p style="margin: 16px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 600; font-style: italic;">* Figures include current applicable GST and service rates.</p>
                     </td>
                 </tr>
             </table>
@@ -846,10 +827,7 @@ const generateGuestEmailHtml = ({
             </div>
         </div>
 
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
-            <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Booking Management Services</div>
-            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
-        </div>
+       
     </div>
 </body>
 </html>`;
@@ -907,8 +885,8 @@ const generateApartmentEmailHtml = ({
                     <div style="display: flex; align-items: center; gap: 16px;">
                         <div style="width: 44px; height: 44px; background: #f4a01e; border-radius: 10px; display: inline-block; text-align: center; line-height: 44px; color: white; font-weight: 900; font-size: 22px; vertical-align: middle;">PA</div>
                         <div style="display: inline-block; vertical-align: middle; margin-left: 10px;">
-                            <h1 style="margin: 0; font-size: 28px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em; text-transform: uppercase;">APARTMENT BOOKING</h1>
-                            <p style="margin: 4px 0 0 0; color: #334155; font-size: 14px; font-weight: 600;">Apartment ${Title}</p>
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 900; color: #f4a01e; letter-spacing: -0.02em; text-transform: uppercase;">APARTMENT ${Title}</h1>
+                            <p style="margin: 4px 0 0 0; color: #334155; font-size: 14px; font-weight: 600;">Extended Stay Apartment</p>
                         </div>
                     </div>
                 </td>
@@ -1049,9 +1027,7 @@ const generateApartmentEmailHtml = ({
                         <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.4);">
                             Mode Of Payment: ${host_payment_mode}
                         </div>
-                        <div style="display: inline-block; background: white; color: #f4a01e; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 10px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.1em;">
-                            VERIFIED
-                        </div>
+                       
                         <div style="margin-top: 16px; text-align: left;">
                              
                         </div>
@@ -1093,10 +1069,7 @@ const generateApartmentEmailHtml = ({
             </div>
         </div>
 
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9; text-align: center;">
-            <div style="font-size: 11px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em;">Pajasa Host Support Services</div>
-            <div style="font-size: 10px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Extended Stay Apartment</div>
-        </div>
+        
     </div>
 </body>
 </html>`;
@@ -1472,9 +1445,9 @@ export async function sendEmail(req, res) {
         console.log(`✅ Guest PDF generated. Size: ${guestPdfBuffer.length} bytes`);
 
         const guestResult = await resend.emails.send({
-            from: "hosting@pajasa.com",
-            // to: emailList,
-            to: ["harshitshukla6388@gmail.com"],
+            from: "booking@pajasaapartments.com",
+            to: emailList,
+            // to: ["harshitshukla6388@gmail.com"],
             subject,
             html: guestHtml,
             attachments: [
@@ -1648,9 +1621,9 @@ async function sendEmailtoApartment(
         console.log(`✅ Apartment PDF generated. Size: ${aptPdfBuffer.length} bytes`);
 
         const aptResult = await resend.emails.send({
-            from: "hosting@pajasa.com",
-            // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-            to: "harshitshukla6388@gmail.com",
+            from: "booking@pajasaapartments.com",
+            to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+            // to: "harshitshukla6388@gmail.com",
             subject: subject2,
             html,
             // attachments: [
@@ -1819,9 +1792,9 @@ export async function sendCancellationEmail({
 </html>`;
 
         const result = await resend.emails.send({
-            from: "hosting@pajasa.com",
-            // to: guest_email.split(',').map(e => e.trim()),
-            to: ["harshitshukla6388@gmail.com"],
+            from: "booking@pajasaapartments.com",
+            to: guest_email.split(',').map(e => e.trim()),
+            // to: ["harshitshukla6388@gmail.com"],
             subject: subject,
             html: html
         });
