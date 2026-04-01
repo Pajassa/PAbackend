@@ -178,8 +178,9 @@ export const sendInvoiceEmail = async (req, res) => {
 
         console.log("Sending email to:", emailTo);
         const { data, resendError } = await resend.emails.send({
-            from: "hosting@pajasa.com",
-            to: ["harshitshukla6388@gmail.com"], // Force test email for now
+            from: "booking@pajasaapartments.com",
+            // to: ["harshitshukla6388@gmail.com"],
+            to: emailTo,
             subject: `${invoiceData.invoice_number || invoiceNumber} : Invoice Generated For Stay At PAJASA Apartments`,
             html: htmlContent,
             attachments: [
