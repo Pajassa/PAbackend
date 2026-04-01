@@ -274,8 +274,10 @@ const generateGuestPdfHtml = ({
             
         </div>
         <div style="text-align: right; ${modeofpayment === 'Bill to Company' ? 'display: none;' : ''}">
-            <p style="margin: 0; font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.1em;">Billing Summary</p>
-            <h3 style="margin: 10px 0 0 0; font-size: 64px; font-weight: 900; color: #ffffff; letter-spacing: -0.04em;">₹ ${(amount * chargeabledays).toLocaleString('en-IN')}</h3>
+            <h3 style="margin: 12px 0 0 0; font-size: 44px; font-weight: 900; color: #ffffff; letter-spacing: -0.02em;">₹ ${(amount * chargeabledays).toLocaleString('en-IN')}</h3>
+            <div style="margin-top: 12px; font-size: 14px; color: rgba(255,255,255,0.8); font-weight: 600;">
+                Base: ₹ ${base_rate} • Tax: ${taxes}% (₹ ${(base_rate * taxes / 100).toFixed(2)}) • Per Night: ₹ ${amount}
+            </div>
         </div>
     </div>
 
@@ -1446,8 +1448,8 @@ export async function sendEmail(req, res) {
 
         const guestResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            to: emailList,
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: emailList,
+            to: ["harshitshukla6388@gmail.com"],
             subject,
             html: guestHtml,
             attachments: [
@@ -1622,8 +1624,8 @@ async function sendEmailtoApartment(
 
         const aptResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-            // to: "harshitshukla6388@gmail.com",
+            // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+            to: "harshitshukla6388@gmail.com",
             subject: subject2,
             html,
             // attachments: [
@@ -1793,8 +1795,8 @@ export async function sendCancellationEmail({
 
         const result = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            to: guest_email.split(',').map(e => e.trim()),
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: guest_email.split(',').map(e => e.trim()),
+            to: ["harshitshukla6388@gmail.com"],
             subject: subject,
             html: html
         });
