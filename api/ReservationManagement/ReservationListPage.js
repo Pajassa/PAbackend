@@ -7,7 +7,13 @@ export const getAllReservations = async (req, res) => {
     const query = `
     SELECT
     r.*,
-      STRING_AGG(DISTINCT rb.room_type, ', ') AS room_type,
+      STRING_AGG(DISTINCT rb.room_type || CASE 
+        WHEN rb.occupancy = '1' THEN ' (SO)'
+        WHEN rb.occupancy = '2' THEN ' (DO)'
+        WHEN rb.occupancy = '3' THEN ' (TO)'
+        WHEN rb.occupancy IS NOT NULL AND rb.occupancy <> '' THEN ' (' || rb.occupancy || ')'
+        ELSE ''
+      END, ', ') AS room_type,
         p.property_type, p.address1, p.address2, p.address3,
         p.Location, p.city, p.Landmark, p.contact_person,
         p.contact_number AS contact_person_number,
@@ -28,7 +34,12 @@ export const getAllReservations = async (req, res) => {
       SELECT JSON_AGG(t) FROM(
         SELECT * FROM booking_history WHERE reservation_id = r.id ORDER BY changed_at DESC LIMIT 1
       ) t
-        ) AS history
+        ) AS history,
+    (
+      SELECT JSON_AGG(JSON_BUILD_OBJECT('roomType', rb2.room_type, 'occupancy', rb2.occupancy))
+      FROM room_bookings rb2
+      WHERE rb2.reservation_id = r.id
+    ) AS "roomSelection"
       FROM reservations r
       LEFT JOIN room_bookings rb ON r.id = rb.reservation_id
       JOIN properties p ON r.property_id = p.property_id
