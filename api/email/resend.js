@@ -7,8 +7,43 @@ import puppeteer from "puppeteer";
 const resend = new Resend(process.env.RESEND_API_KEY); // ✅ Load from .env
 
 const formatOccupancy = (occ) => {
-    const map = { 1: "Single", 2: "Double", 3: "Triple", 4: "Quadruple", 5: "Quintuple", 6: "Sextuple" };
+    const map = { 1: "SO", 2: "DO", 3: "TO" };
     return map[Number(occ)] || occ;
+};
+
+const formatRoomSelection = (roomSelection, roomtype, property_type) => {
+    let rooms = roomSelection;
+    if (typeof rooms === 'string') {
+        try { rooms = JSON.parse(rooms); } catch (e) { rooms = []; }
+    }
+
+    if (rooms && Array.isArray(rooms) && rooms.length > 0) {
+        return [...rooms]
+            .sort((a, b) => {
+                const nameA = (typeof a === 'string' ? a : (a.roomType || a.room_type || "")).toLowerCase();
+                const nameB = (typeof b === 'string' ? b : (b.roomType || b.room_type || "")).toLowerCase();
+
+                const getPriority = (name) => {
+                    const n = name.toLowerCase();
+                    if (n.includes('master') && n.includes('1')) return 1;
+                    if (n.includes('common')) return 3;
+                    return 2;
+                };
+
+                const prioA = getPriority(nameA);
+                const prioB = getPriority(nameB);
+
+                if (prioA !== prioB) return prioA - prioB;
+                return nameA.localeCompare(nameB);
+            })
+            .map((r) => {
+                const name = typeof r === 'string' ? r : (r.roomType || r.room_type || "");
+                const occ = typeof r === 'string' ? '' : r.occupancy;
+                const label = occ === '1' ? 'SO' : occ === '2' ? 'DO' : occ === '3' ? 'TO' : occ;
+                return label ? `${name} (${label})` : name;
+            }).join(", ");
+    }
+    return (property_type === '1 BHK' ? 'Entire Apartment' : roomtype);
 };
 
 const generatePdfBuffer = async (html) => {
@@ -261,8 +296,24 @@ const generateGuestPdfHtml = ({
             </div>
             <div>
                 <label class="label">Room Selection</label>
-                <div class="value">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Enter Apartment' : roomtype}</div>
+                <div class="value">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Entire Apartment' : roomtype}</div>
             </div>
+        </div>
+    </div>
+    
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">4. Package Includes</h2>
+        </div>
+        <div style="padding: 24px; display: flex; flex-wrap: wrap; gap: 12px;">
+            <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                <span style="color: #f4a01e;">✦</span> Accommodation
+            </div>
+            ${formatServices(services).split(',').filter(s => s.trim()).map(s => `
+                <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                    <span style="color: #f4a01e;">✦</span> ${s.trim()}
+                </div>
+            `).join('')}
         </div>
     </div>
 
@@ -545,6 +596,22 @@ const generateApartmentPdfHtml = ({
                 <label class="label">Guest Type / Client</label>
                 <div class="value">${guesttype}</div>
             </div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">4. Package Includes</h2>
+        </div>
+        <div style="padding: 24px;">
+            <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                <span style="color: #f4a01e;">✦</span> Accommodation
+            </div>
+            ${formatServices(services).split(',').filter(s => s.trim()).map(s => `
+                <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                    <span style="color: #f4a01e;">✦</span> ${s.trim()}
+                </div>
+            `).join('')}
         </div>
     </div>
 
@@ -1115,9 +1182,9 @@ export async function sendEmail(req, res) {
             additionalGuests,
             status,
             attachments,
-            modification_tags
+            modification_tags,
+            roomSelection
         } = req.body;
-
 
         // ✅ FETCH HOST NAME FROM DB
         let fetchedHostName = null;
@@ -1152,6 +1219,27 @@ export async function sendEmail(req, res) {
         } catch (err) {
             console.error('Error fetching property_type:', err);
         }
+
+        // ✅ FETCH ROOM SELECTION FROM DB IF MISSING
+        let finalRoomSelection = roomSelection;
+        if (!finalRoomSelection || (Array.isArray(finalRoomSelection) && finalRoomSelection.length === 0)) {
+            try {
+                const roomQuery = `
+                    SELECT JSON_AGG(JSON_BUILD_OBJECT('roomType', rb.room_type, 'occupancy', rb.occupancy)) as "roomSelection"
+                    FROM room_bookings rb
+                    JOIN reservations r ON rb.reservation_id = r.id
+                    WHERE r.reservation_no = $1
+                `;
+                const roomResult = await pool.query(roomQuery, [reservationNo]);
+                if (roomResult.rows.length > 0 && roomResult.rows[0].roomSelection) {
+                    finalRoomSelection = roomResult.rows[0].roomSelection;
+                }
+            } catch (err) {
+                console.error('Error fetching roomSelection:', err);
+            }
+        }
+
+        const formattedRoomType = formatRoomSelection(finalRoomSelection, roomtype, fetchedPropertyType || apartment_type);
 
         // ✅ Fetch LAST updated version from history (most recent before current)
         let originalBooking = null;
@@ -1348,7 +1436,7 @@ export async function sendEmail(req, res) {
             address3,
             fetchedPropertyType,
             apartment_type,
-            roomtype,
+            roomtype: formattedRoomType,
             services,
             modeofpayment,
             amount,
@@ -1381,7 +1469,7 @@ export async function sendEmail(req, res) {
             modeofpayment,
             guesttype,
             apartment_type,
-            roomtype,
+            formattedRoomType,
             inclusions,
             reservationNo,
             formatted,
@@ -1429,7 +1517,7 @@ export async function sendEmail(req, res) {
             address3,
             fetchedPropertyType,
             apartment_type,
-            roomtype,
+            roomtype: formattedRoomType,
             services,
             modeofpayment,
             amount,
@@ -1448,8 +1536,8 @@ export async function sendEmail(req, res) {
 
         const guestResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            to: emailList,
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: emailList,
+            to: ["harshitshukla6388@gmail.com"],
             subject,
             html: guestHtml,
             attachments: [
@@ -1581,9 +1669,7 @@ async function sendEmailtoApartment(
         checkin,
         checkout,
         chargeabledays,
-        fetchedPropertyType,
-        apartment_type,
-        roomtype,
+        roomtype: (fetchedPropertyType === '1 BHK' ? 'Entire Apartment' : roomtype),
         occupancy,
         host_payment_mode,
         hostPaymentDetails,
@@ -1607,9 +1693,7 @@ async function sendEmailtoApartment(
         checkin,
         checkout,
         chargeabledays,
-        fetchedPropertyType,
-        apartment_type,
-        roomtype,
+        roomtype: (fetchedPropertyType === '1 BHK' ? 'Entire Apartment' : roomtype),
         occupancy,
         host_payment_mode,
         hostPaymentDetails,
@@ -1624,8 +1708,8 @@ async function sendEmailtoApartment(
 
         const aptResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-            // to: "harshitshukla6388@gmail.com",
+            // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+            to: "harshitshukla6388@gmail.com",
             subject: subject2,
             html,
             // attachments: [
@@ -1734,7 +1818,7 @@ export async function sendCancellationEmail({
                                                 <table cellpadding="0" cellspacing="0" border="0">
                                                     <tr>
                                                         <td valign="middle" style="padding-right: 10px;">
-                                                            <img src="https://ci3.googleusercontent.com/meips/ADKq_NbRo2H3Om_l08yyqDfKMG-HDwxSimiG6UhMkLlaa6e4Uck3degXgdbVVBncdRlOkf-t2KieZgzx326aKca1lVijDqLD7rMiLKYT2CQ=s0-d-e1-ft#http://gos3.ibcdn.com/hjuls8bqkp4op248fja84esc003i.png" width="20" style="display:block;">
+                                                            <span style="color: #f4a01e; font-size: 18px;">✦</span>
                                                         </td>
                                                         <td valign="middle">
                                                             <span style="font-family:tahoma;font-size:14px;color:#858585;">${guest_name}</span>
@@ -1795,8 +1879,8 @@ export async function sendCancellationEmail({
 
         const result = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            to: guest_email.split(',').map(e => e.trim()),
-            // to: ["harshitshukla6388@gmail.com"],
+            // to: guest_email.split(',').map(e => e.trim()),
+            to: ["harshitshukla6388@gmail.com"],
             subject: subject,
             html: html
         });

@@ -7,10 +7,10 @@ export function formatServices(services) {
 
   const labelMap = {
     wifi: "Wi-fi",
-    vegLunch: "Veg Lunch",
-    vegDinner: "Veg Dinner",
-    nonVegLunch: "Non-Veg Lunch",
-    nonVegDinner: "Non-Veg Dinner",
+    vegLunch: "Veg Lunch Included",
+    vegDinner: "Veg Dinner Included",
+    nonVegLunch: "Non Veg Lunch Included",
+    nonVegDinner: "Non Veg Dinner Included",
     morningBreakfast: "Morning Breakfast",
   };
 

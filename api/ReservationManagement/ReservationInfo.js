@@ -182,7 +182,10 @@ export async function saveReservation(req, res) {
       createdAt,
     } = req.body;
 
-    const roomSelection = rawRoomSelection ? [...new Set(rawRoomSelection)] : [];
+    // Support both old (string array) and new (object array) formats for roomSelection
+    const roomSelection = rawRoomSelection ? rawRoomSelection.map(room => 
+      typeof room === 'string' ? { roomType: room, occupancy: guestInfo.occupancy || '1' } : room
+    ) : [];
 
     // Generate reservation number
     // Generate reservation number
@@ -276,19 +279,21 @@ export async function saveReservation(req, res) {
     room_type,
     check_in_date,
     check_out_date,
-    status
+    status,
+    occupancy
   )
-  VALUES ($1,$2,$3,$4,$5)
+  VALUES ($1,$2,$3,$4,$5,$6)
 `;
 
     if (roomSelection && roomSelection.length > 0) {
-      for (const room of roomSelection) {
+      for (const roomObj of roomSelection) {
         await client.query(roomBookingQuery, [
           reservationId,
-          room,
+          roomObj.roomType,
           checkInDate,
           checkOutDate,
           "Confirmed",
+          roomObj.occupancy || guestInfo.occupancy || "1"
         ]);
       }
     }
@@ -385,7 +390,7 @@ async function fetchReservationData(id) {
       rai.host_total_amount, rai.apartment_type, rai.host_payment_mode,
       rai.comments, rai.services, rai.note,
       (
-        SELECT json_agg(room_type)
+        SELECT json_agg(json_build_object('roomType', room_type, 'occupancy', occupancy))
           FROM room_bookings rb
           WHERE rb.reservation_id = r.id
         ) as "roomSelection",
@@ -486,7 +491,10 @@ export async function updateReservation(req, res) {
       additionalGuests
     } = req.body;
 
-    const roomSelection = rawRoomSelection ? [...new Set(rawRoomSelection)] : [];
+    // Support both old (string array) and new (object array) formats for roomSelection
+    const roomSelection = rawRoomSelection ? rawRoomSelection.map(room => 
+      typeof room === 'string' ? { roomType: room, occupancy: guestInfo.occupancy || '1' } : room
+    ) : [];
 
     if (!id) {
       throw new Error("Reservation ID is required for update");
@@ -615,17 +623,18 @@ export async function updateReservation(req, res) {
 
     const roomBookingQuery = `
       INSERT INTO room_bookings(
-        reservation_id, room_type, property_id, check_in_date, check_out_date
-      ) VALUES($1, $2, $3, $4, $5)
+        reservation_id, room_type, property_id, check_in_date, check_out_date, occupancy
+      ) VALUES($1, $2, $3, $4, $5, $6)
         `;
 
-    for (const roomType of roomSelection) {
+    for (const roomObj of roomSelection) {
       await client.query(roomBookingQuery, [
         id,
-        roomType,
+        roomObj.roomType,
         propertyId,
         checkInDate,
         checkOutDate,
+        roomObj.occupancy || guestInfo.occupancy || "1"
       ]);
     }
 
