@@ -1536,8 +1536,8 @@ export async function sendEmail(req, res) {
 
         const guestResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            // to: emailList,
-            to: ["harshitshukla6388@gmail.com"],
+            to: emailList,
+            // to: ["harshitshukla6388@gmail.com"],
             subject,
             html: guestHtml,
             attachments: [
@@ -1708,8 +1708,8 @@ async function sendEmailtoApartment(
 
         const aptResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
-            to: "harshitshukla6388@gmail.com",
+            to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
+            // to: "harshitshukla6388@gmail.com",
             subject: subject2,
             html,
             // attachments: [
@@ -1879,8 +1879,8 @@ export async function sendCancellationEmail({
 
         const result = await resend.emails.send({
             from: "booking@pajasaapartments.com",
-            // to: guest_email.split(',').map(e => e.trim()),
-            to: ["harshitshukla6388@gmail.com"],
+            to: guest_email.split(',').map(e => e.trim()),
+            // to: ["harshitshukla6388@gmail.com"],
             subject: subject,
             html: html
         });
