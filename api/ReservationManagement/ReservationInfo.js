@@ -95,10 +95,10 @@ export async function checkRoomAvailability(req, res) {
     FROM room_bookings rb
     JOIN reservations r ON rb.reservation_id = r.id
     WHERE rb.property_id = $1
-        AND rb.status = 'active'
+        AND rb.status != 'Cancelled'
         AND rb.room_type = ANY($2::text[])
-        AND rb.check_in_date <= $4 
-        AND rb.check_out_date >= $3
+        AND rb.check_in_date < $4 
+        AND rb.check_out_date > $3
     `;
 
     const queryParams = [
@@ -277,12 +277,13 @@ export async function saveReservation(req, res) {
   INSERT INTO room_bookings (
     reservation_id,
     room_type,
+    property_id,
     check_in_date,
     check_out_date,
     status,
     occupancy
   )
-  VALUES ($1,$2,$3,$4,$5,$6)
+  VALUES ($1,$2,$3,$4,$5,$6,$7)
 `;
 
     if (roomSelection && roomSelection.length > 0) {
@@ -290,6 +291,7 @@ export async function saveReservation(req, res) {
         await client.query(roomBookingQuery, [
           reservationId,
           roomObj.roomType,
+          propertyId,
           checkInDate,
           checkOutDate,
           "Confirmed",
@@ -623,8 +625,8 @@ export async function updateReservation(req, res) {
 
     const roomBookingQuery = `
       INSERT INTO room_bookings(
-        reservation_id, room_type, property_id, check_in_date, check_out_date, occupancy
-      ) VALUES($1, $2, $3, $4, $5, $6)
+        reservation_id, room_type, property_id, check_in_date, check_out_date, occupancy, status
+      ) VALUES($1, $2, $3, $4, $5, $6, $7)
         `;
 
     for (const roomObj of roomSelection) {
@@ -634,7 +636,8 @@ export async function updateReservation(req, res) {
         propertyId,
         checkInDate,
         checkOutDate,
-        roomObj.occupancy || guestInfo.occupancy || "1"
+        roomObj.occupancy || guestInfo.occupancy || "1",
+        newStatus
       ]);
     }
 
