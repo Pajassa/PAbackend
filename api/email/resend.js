@@ -300,6 +300,22 @@ const generateGuestPdfHtml = ({
             </div>
         </div>
     </div>
+    
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">4. Package Includes</h2>
+        </div>
+        <div style="padding: 24px; display: flex; flex-wrap: wrap; gap: 12px;">
+            <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                <span style="color: #f4a01e;">✦</span> Accommodation
+            </div>
+            ${formatServices(services).split(',').filter(s => s.trim()).map(s => `
+                <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                    <span style="color: #f4a01e;">✦</span> ${s.trim()}
+                </div>
+            `).join('')}
+        </div>
+    </div>
 
     <div class="billing-box">
         <div style="text-align: left; display: flex; flex-direction: column; gap: 15px;">
@@ -580,6 +596,22 @@ const generateApartmentPdfHtml = ({
                 <label class="label">Guest Type / Client</label>
                 <div class="value">${guesttype}</div>
             </div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-header">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; text-transform: uppercase;">4. Package Includes</h2>
+        </div>
+        <div style="padding: 24px;">
+            <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                <span style="color: #f4a01e;">✦</span> Accommodation
+            </div>
+            ${formatServices(services).split(',').filter(s => s.trim()).map(s => `
+                <div style="display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #92400e; margin-right: 12px; margin-bottom: 12px;">
+                    <span style="color: #f4a01e;">✦</span> ${s.trim()}
+                </div>
+            `).join('')}
         </div>
     </div>
 
@@ -1786,7 +1818,7 @@ export async function sendCancellationEmail({
                                                 <table cellpadding="0" cellspacing="0" border="0">
                                                     <tr>
                                                         <td valign="middle" style="padding-right: 10px;">
-                                                            <img src="https://ci3.googleusercontent.com/meips/ADKq_NbRo2H3Om_l08yyqDfKMG-HDwxSimiG6UhMkLlaa6e4Uck3degXgdbVVBncdRlOkf-t2KieZgzx326aKca1lVijDqLD7rMiLKYT2CQ=s0-d-e1-ft#http://gos3.ibcdn.com/hjuls8bqkp4op248fja84esc003i.png" width="20" style="display:block;">
+                                                            <span style="color: #f4a01e; font-size: 18px;">✦</span>
                                                         </td>
                                                         <td valign="middle">
                                                             <span style="font-family:tahoma;font-size:14px;color:#858585;">${guest_name}</span>
