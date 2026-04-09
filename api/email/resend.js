@@ -18,21 +18,18 @@ const formatRoomSelection = (roomSelection, roomtype, property_type) => {
     }
 
     if (rooms && Array.isArray(rooms) && rooms.length > 0) {
-        return [...rooms]
+        return (rooms)
             .sort((a, b) => {
                 const nameA = (typeof a === 'string' ? a : (a.roomType || a.room_type || "")).toLowerCase();
                 const nameB = (typeof b === 'string' ? b : (b.roomType || b.room_type || "")).toLowerCase();
-
                 const getPriority = (name) => {
-                    const n = name.toLowerCase();
-                    if (n.includes('master') && n.includes('1')) return 1;
-                    if (n.includes('common')) return 3;
+                    const clean = name.toLowerCase().replace(/[-\s]/g, '');
+                    if (clean.includes('masterbedroom1')) return 1;
+                    if (clean.includes('commonbedroom')) return 3;
                     return 2;
                 };
-
                 const prioA = getPriority(nameA);
                 const prioB = getPriority(nameB);
-
                 if (prioA !== prioB) return prioA - prioB;
                 return nameA.localeCompare(nameB);
             })
@@ -43,7 +40,7 @@ const formatRoomSelection = (roomSelection, roomtype, property_type) => {
                 return label ? `${name} (${label})` : name;
             }).join(", ");
     }
-    return (property_type === '1 BHK' ? 'Entire Apartment' : roomtype);
+    return (property_type === '1 BHK' ? 'Entire Apartment' : (roomtype || 'N/A'));
 };
 
 const generatePdfBuffer = async (html) => {
@@ -292,11 +289,11 @@ const generateGuestPdfHtml = ({
             </div>
             <div>
                 <label class="label">Property Type</label>
-                <div class="value">${fetchedPropertyType || apartment_type}</div>
+                <div class="value">${fetchedPropertyType || apartment_type || 'N/A'}</div>
             </div>
             <div>
                 <label class="label">Room Selection</label>
-                <div class="value">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Entire Apartment' : roomtype}</div>
+                <div class="value">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Entire Apartment' : (roomtype || 'N/A')}</div>
             </div>
         </div>
     </div>
@@ -529,7 +526,7 @@ const generateApartmentPdfHtml = ({
             </div>
             <div>
                 <label class="label">Property Type</label>
-                <div class="value">${fetchedPropertyType || apartment_type}</div>
+                <div class="value">${fetchedPropertyType || apartment_type || 'N/A'}</div>
             </div>
             <div style="grid-column: span 2;">
                 <label class="label">Apartment Full Address</label>
@@ -822,11 +819,11 @@ const generateGuestEmailHtml = ({
                     <tr>
                         <td width="50%">
                             <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Property Type</label>
-                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${fetchedPropertyType || apartment_type}</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${fetchedPropertyType || apartment_type || 'N/A'}</div>
                         </td>
                         <td width="50%">
                             <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Room Selection</label>
-                            <div style="font-size: 15px; font-weight: 700; color: #0f172a;">${roomtype}</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #0f172a;">${roomtype || 'N/A'}</div>
                         </td>
                     </tr>
                 </table>
@@ -1074,7 +1071,9 @@ const generateApartmentEmailHtml = ({
                         </td>
                         <td width="50%" valign="top">
                             <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Room Selection / Property Type</label>
-                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Enter Apartment' : roomtype} / ${fetchedPropertyType || apartment_type}</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #b91c1c;">
+                                ${(fetchedPropertyType || apartment_type) === '1 BHK' ? 'Entire Apartment' : roomtype}${ (fetchedPropertyType || apartment_type) ? ' / ' + (fetchedPropertyType || apartment_type) : ''}
+                            </div>
                         </td>
                     </tr>
                 </table>
