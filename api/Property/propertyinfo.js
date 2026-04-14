@@ -206,14 +206,14 @@ export async function createProperty(req, res) {
         post_id, property_type, contact_person, contact_number, email_id,
         caretaker_name, caretaker_number, note, check_in_time, check_out_time,
         master_bedroom, common_bedroom, landmark, address1, address2, address3,
-        thumbnail, property_url
+        thumbnail, property_url, created_by
       )
       VALUES (
         $1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10, $11,
         $12, $13, $14, $15, $16,
         $17, $18, $19, $20, $21, $22,
-        $23, $24
+        $23, $24, $25
       )
       RETURNING property_id, property_status, host_id, pincode_id
     `;
@@ -243,6 +243,7 @@ export async function createProperty(req, res) {
       address3,
       thumbnail,
       property_url,
+      req.user.id
     ];
 
     const result = await pool.query(insertQuery, values);

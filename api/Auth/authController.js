@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 const SECRET_KEY = process.env.JWT_SECRET || "your_super_secret_key_change_me"; // Env var best practice
 
 export const signup = async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, role, modules, parentAdminId } = req.body;
 
     if (!username || !email || !password) {
         return res.status(400).json({ success: false, message: "All fields are required" });
@@ -22,10 +22,17 @@ export const signup = async (req, res) => {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // Insert user
+        // Insert user with RBAC fields
         const newUser = await pool.query(
-            "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email",
-            [username, email, passwordHash]
+            "INSERT INTO users (username, email, password_hash, role, modules, parent_admin_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, email, role, modules, parent_admin_id",
+            [
+                username, 
+                email, 
+                passwordHash, 
+                role || "User", 
+                modules || [], 
+                parentAdminId || null
+            ]
         );
 
         const user = newUser.rows[0];
@@ -37,7 +44,14 @@ export const signup = async (req, res) => {
             success: true,
             message: "User registered successfully",
             token,
-            user: { id: user.id, username: user.username, email: user.email }
+            user: { 
+                id: user.id, 
+                username: user.username, 
+                email: user.email,
+                role: user.role,
+                modules: user.modules,
+                parentAdminId: user.parent_admin_id
+            }
         });
 
     } catch (error) {
@@ -74,7 +88,14 @@ export const signin = async (req, res) => {
             success: true,
             message: "Login successful",
             token,
-            user: { id: user.id, username: user.username, email: user.email }
+            user: { 
+                id: user.id, 
+                username: user.username, 
+                email: user.email,
+                role: user.role,
+                modules: user.modules,
+                parentAdminId: user.parent_admin_id
+            }
         });
 
     } catch (error) {

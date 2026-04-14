@@ -161,11 +161,11 @@ export const createInvoice = async (req, res) => {
         conversion_rate, sub_total, tax_total, grand_total,
         display_taxes, display_food_charge, extra_services,
         services_name, services_amount, pdf_password, page_break,
-        guest_name_width, round_off_value
+        guest_name_width, round_off_value, created_by
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22, $23
       )
       RETURNING id
     `;
@@ -192,7 +192,8 @@ export const createInvoice = async (req, res) => {
       pdfPassword,
       toNum(pageBreak),
       toNum(guestNameWidth),
-      toNum(roundOffValue)
+      toNum(roundOffValue),
+      req.user.id
     ];
 
     const invoiceResult = await client.query(invoiceQuery, invoiceValues);

@@ -253,7 +253,8 @@ export async function saveReservation(req, res) {
       toInt(guestInfo.chargeableDays),
       guestInfo.adminEmail || "",
       createdAt || new Date(),
-      "Confirmed"
+      "Confirmed",
+      req.user.id
     ];
 
     const reservationQuery = `
@@ -261,9 +262,9 @@ export async function saveReservation(req, res) {
         reservation_no, client_id, property_id, guest_name, guest_email,
         contact_number, check_in_date, check_out_date, check_in_time,
         check_out_time, occupancy, base_rate, taxes, total_tariff,
-        payment_mode, tariff_type, chargeable_days, admin_email, created_at,status
+        payment_mode, tariff_type, chargeable_days, admin_email, created_at, status, created_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, $21)
       RETURNING id
     `;
 

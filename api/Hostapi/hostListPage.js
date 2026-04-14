@@ -150,15 +150,32 @@ export async function  getAllHosts  (req, res) {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
+    // Get user from request (attached by authMiddleware)
+    const { id: userId, role } = req.user;
+
+    // Build filter based on role
+    let filterQuery = "";
+    let filterParams = [];
+
+    if (role === "Super Admin") {
+      filterQuery = "1=1";
+    } else if (role === "Admin") {
+      filterQuery = "(created_by = $1 OR created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
+      filterParams.push(userId);
+    } else {
+      filterQuery = "created_by = $1";
+      filterParams.push(userId);
+    }
+
     // Get total count
-    const countQuery = 'SELECT COUNT(*) FROM host_information';
-    const countResult = await pool.query(countQuery);
+    const countQuery = `SELECT COUNT(*) FROM host_information WHERE ${filterQuery}`;
+    const countResult = await pool.query(countQuery, filterParams);
     const totalItems = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalItems / limit);
 
-    // Get hosts with pagination
+    // Get hosts with pagination and filtering
     const hostsQuery = `
-      SELECT h.host_id, h.host_name,host_owner_name, h.host_pan_number, h.rating, 
+      SELECT h.host_id, h.host_name, h.host_owner_name, h.host_pan_number, h.rating, 
              h.host_email, h.host_contact_number, h.created_at,
              COALESCE(
                JSON_AGG(
@@ -170,13 +187,14 @@ export async function  getAllHosts  (req, res) {
              ) as gst_numbers
       FROM host_information h
       LEFT JOIN host_gst_numbers g ON h.host_id = g.host_id
+      WHERE ${filterQuery}
       GROUP BY h.host_id, h.host_name, h.host_pan_number, h.rating, 
                h.host_email, h.host_contact_number, h.created_at
       ORDER BY h.created_at DESC
-      LIMIT $1 OFFSET $2
+      LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}
     `;
     
-    const hostsResult = await pool.query(hostsQuery, [limit, offset]);
+    const hostsResult = await pool.query(hostsQuery, [...filterParams, limit, offset]);
 
     res.json({
       hosts: hostsResult.rows,

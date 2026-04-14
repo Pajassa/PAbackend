@@ -2,6 +2,7 @@ import express from "express";
 import createHost from "./api/Hostapi/HostInfo.js";
 import { getAllHosts, deleteHost, updateHost } from "./api/Hostapi/hostListPage.js"
 import { signup, signin, logout } from "./api/Auth/authController.js";
+import { getAllUsers, createUser, updateUser, deleteUser } from "./api/Auth/userManagementController.js";
 import { getPinCode, getHost, createProperty } from "./api/Property/propertyinfo.js"
 import { Pincode } from "./api/Pincode/Pincodeinfo.js";
 import { AllPinCode } from "./api/Pincode/PincodeListPage.js"
@@ -15,11 +16,12 @@ import { sendEmail } from "./api/email/resend.js";
 import { createInvoice } from "./api/invioce/invioceform.js"
 import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice, downloadInvoice } from "./api/invioce/invoiceListPage.js"
 import { sendInvoiceEmail } from "./api/invioce/invoiceEmail.js";
+import { authMiddleware, checkModuleAccess, checkSuperAdmin } from "./middleware/auth.js";
 
 const router = express.Router();
 
 
-// Auth
+// Auth (Public)
 router.post("/signup", signup);
 router.post("/signin", signin);
 router.post("/logout", logout);
@@ -27,72 +29,62 @@ router.post("/logout", logout);
 
 
 // Host 
-router.post("/hosts", createHost);
-router.get("/hostsList", getAllHosts);
-router.delete("/deleteHost/:id", deleteHost);
-router.put("/updateHost/:id", updateHost);
+router.post("/hosts", authMiddleware, checkModuleAccess("host"), createHost);
+router.get("/hostsList", authMiddleware, checkModuleAccess("host"), getAllHosts);
+router.delete("/deleteHost/:id", authMiddleware, checkModuleAccess("host"), deleteHost);
+router.put("/updateHost/:id", authMiddleware, checkModuleAccess("host"), updateHost);
 
 
 // property
-
-
-// pinc
-router.post("/Pincode", Pincode)
-router.get("/AllPinCode", AllPinCode)
-
-
-
-
-
-router.get("/PinCode", getPinCode);
-router.get("/host", getHost);
-
-router.post("/properties", createProperty);
-
-
-router.get("/properties", getallProperty);
-router.get("/property/:id", getPropertyById);
-router.put("/updateProperty/:id", UpdateProperty);
-
-router.delete("/deleteProperty/:id", deleteProperty)
+router.post("/Pincode", authMiddleware, checkModuleAccess("property"), Pincode)
+router.get("/AllPinCode", authMiddleware, checkModuleAccess("property"), AllPinCode)
+router.get("/PinCode", authMiddleware, checkModuleAccess("property"), getPinCode);
+router.get("/host", authMiddleware, checkModuleAccess("property"), getHost);
+router.post("/properties", authMiddleware, checkModuleAccess("property"), createProperty);
+router.get("/properties", authMiddleware, checkModuleAccess("property"), getallProperty);
+router.get("/property/:id", authMiddleware, checkModuleAccess("property"), getPropertyById);
+router.put("/updateProperty/:id", authMiddleware, checkModuleAccess("property"), UpdateProperty);
+router.delete("/deleteProperty/:id", authMiddleware, checkModuleAccess("property"), deleteProperty)
 
 
 // client
-
-
-router.post("/insertClient", insertClient);
-
-router.get("/clients", ClientListPage);
-router.delete("/deleteClient/:id", deleteClient);
-router.put("/updateClient/:id", updateClient);
-router.get("/client/:id", getClientById);
+router.post("/insertClient", authMiddleware, checkModuleAccess("client"), insertClient);
+router.get("/clients", authMiddleware, checkModuleAccess("client"), ClientListPage);
+router.delete("/deleteClient/:id", authMiddleware, checkModuleAccess("client"), deleteClient);
+router.put("/updateClient/:id", authMiddleware, checkModuleAccess("client"), updateClient);
+router.get("/client/:id", authMiddleware, checkModuleAccess("client"), getClientById);
 
 
 // Reservation
-
-router.get("/clientRM", ClientList);
-router.get("/Property", getProperty);
-router.post("/checkRoomAvailability", checkRoomAvailability);
-router.post("/Reservation", saveReservation);
-router.get("/getReservationById", getReservationById);
-router.put("/updateReservation", updateReservation);
+router.get("/clientRM", authMiddleware, checkModuleAccess("reservation"), ClientList);
+router.get("/Property", authMiddleware, checkModuleAccess("reservation"), getProperty);
+router.post("/checkRoomAvailability", authMiddleware, checkModuleAccess("reservation"), checkRoomAvailability);
+router.post("/Reservation", authMiddleware, checkModuleAccess("reservation"), saveReservation);
+router.get("/getReservationById", authMiddleware, checkModuleAccess("reservation"), getReservationById);
+router.put("/updateReservation", authMiddleware, checkModuleAccess("reservation"), updateReservation);
 
 
 // Reservation List
-
-router.get("/getAllReservations", getAllReservations);
-router.delete("/deleteReservation", deleteReservation)
-router.post("/sendemail", sendEmail);
-
-
-router.post("/createInvoice", createInvoice)
-router.get("/getAllInvoices", getAllInvoices)
-router.delete("/deleteInvoice/:id", deleteInvoice)
-router.get("/getInvoiceById/:id", getInvoiceById)
-router.put("/updateInvoice/:id", updateInvoice)
-router.get("/downloadInvoice/:id", downloadInvoice)
-router.post("/invoices/send-email", sendInvoiceEmail);
+router.get("/getAllReservations", authMiddleware, checkModuleAccess("reservation"), getAllReservations);
+router.delete("/deleteReservation", authMiddleware, checkModuleAccess("reservation"), deleteReservation)
+router.post("/sendemail", authMiddleware, checkModuleAccess("reservation"), sendEmail);
 
 
+// Invoice
+router.post("/createInvoice", authMiddleware, checkModuleAccess("invoice"), createInvoice)
+router.get("/getAllInvoices", authMiddleware, checkModuleAccess("invoice"), getAllInvoices)
+router.delete("/deleteInvoice/:id", authMiddleware, checkModuleAccess("invoice"), deleteInvoice)
+router.get("/getInvoiceById/:id", authMiddleware, checkModuleAccess("invoice"), getInvoiceById)
+router.put("/updateInvoice/:id", authMiddleware, checkModuleAccess("invoice"), updateInvoice)
+router.get("/downloadInvoice/:id", authMiddleware, checkModuleAccess("invoice"), downloadInvoice)
+router.post("/invoices/send-email", authMiddleware, checkModuleAccess("invoice"), sendInvoiceEmail);
+
+
+
+// User Management (Super Admin Only)
+router.get("/users", authMiddleware, checkSuperAdmin, getAllUsers);
+router.post("/users", authMiddleware, checkSuperAdmin, createUser);
+router.put("/users/:id", authMiddleware, checkSuperAdmin, updateUser);
+router.delete("/users/:id", authMiddleware, checkSuperAdmin, deleteUser);
 
 export default router;

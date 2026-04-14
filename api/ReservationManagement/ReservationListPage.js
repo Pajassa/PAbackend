@@ -4,6 +4,21 @@ import { sendCancellationEmail } from "../email/resend.js";
 export const getAllReservations = async (req, res) => {
   try {
 
+    const { id: userId, role } = req.user;
+
+    let filterQuery = "";
+    let filterParams = [];
+
+    if (role === "Super Admin") {
+      filterQuery = "1=1";
+    } else if (role === "Admin") {
+      filterQuery = "(r.created_by = $1 OR r.created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
+      filterParams.push(userId);
+    } else {
+      filterQuery = "r.created_by = $1";
+      filterParams.push(userId);
+    }
+
     const query = `
     SELECT
     r.*,
@@ -45,6 +60,7 @@ export const getAllReservations = async (req, res) => {
       JOIN properties p ON r.property_id = p.property_id
       JOIN clients c ON r.client_id = c.id
       LEFT JOIN reservation_additional_info rai ON r.id = rai.reservation_id
+      WHERE ${filterQuery}
       GROUP BY
 r.id,
   p.property_type, p.address1, p.address2, p.address3,
@@ -58,7 +74,7 @@ r.id,
       ORDER BY r.created_at DESC
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, filterParams);
 
 
     res.status(200).json({ data: result.rows });

@@ -7,8 +7,23 @@ export async function getallProperty(req, res) {
         const limit = parseInt(req.query.limit) || 30;
         const offset = (page - 1) * limit;
 
-        const countQuery = `SELECT COUNT(*) FROM properties`;
-        const countResult = await pool.query(countQuery);
+        const { id: userId, role } = req.user;
+
+        let filterQuery = "";
+        let filterParams = [];
+
+        if (role === "Super Admin") {
+            filterQuery = "1=1";
+        } else if (role === "Admin") {
+            filterQuery = "(p.created_by = $1 OR p.created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
+            filterParams.push(userId);
+        } else {
+            filterQuery = "p.created_by = $1";
+            filterParams.push(userId);
+        }
+
+        const countQuery = `SELECT COUNT(*) FROM properties p WHERE ${filterQuery}`;
+        const countResult = await pool.query(countQuery, filterParams);
         const totalItems = parseInt(countResult.rows[0].count);
         const totalPages = Math.ceil(totalItems / limit);
 
@@ -18,11 +33,12 @@ export async function getallProperty(req, res) {
             FROM properties p
             LEFT JOIN host_information h ON p.host_id = h.host_id
             LEFT JOIN pincodes pc ON p.pincode_id = pc.pincode_id
+            WHERE ${filterQuery}
             ORDER BY p.property_id DESC
-            LIMIT $1 OFFSET $2
+            LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}
         `;
 
-        const propResult = await pool.query(propQuery, [limit, offset]);
+        const propResult = await pool.query(propQuery, [...filterParams, limit, offset]);
 
         await pool.query('COMMIT');
         res.json({

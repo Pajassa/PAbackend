@@ -1534,10 +1534,30 @@ export async function sendEmail(req, res) {
         const guestPdfBuffer = await generatePdfBuffer(guestPdfHtml);
         console.log(`✅ Guest PDF generated. Size: ${guestPdfBuffer.length} bytes`);
 
+        // Fetch creator and parent admin for CC
+        let ccEmails = [];
+        try {
+            const hierarchyResult = await pool.query(`
+                SELECT u.email as creator_email, p.email as parent_email 
+                FROM users u
+                LEFT JOIN users p ON u.parent_admin_id = p.id
+                WHERE u.id = (SELECT created_by FROM reservations WHERE reservation_no = $1)
+            `, [reservationNo]);
+
+            if (hierarchyResult.rows.length > 0) {
+                const { creator_email, parent_email } = hierarchyResult.rows[0];
+                if (creator_email) ccEmails.push(creator_email);
+                if (parent_email) ccEmails.push(parent_email);
+            }
+        } catch (hierarchyErr) {
+            console.error("Error fetching hierarchy for CC:", hierarchyErr);
+        }
+
         const guestResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
             // to: emailList,
             to: ["harshitshukla6388@gmail.com"],
+            cc: ccEmails.length > 0 ? ccEmails : undefined,
             subject,
             html: guestHtml,
             attachments: [
@@ -1706,10 +1726,30 @@ async function sendEmailtoApartment(
         const aptPdfBuffer = await generatePdfBuffer(pdfHtml);
         console.log(`✅ Apartment PDF generated. Size: ${aptPdfBuffer.length} bytes`);
 
+        // Fetch creator and parent admin for CC
+        let ccEmails = [];
+        try {
+            const hierarchyResult = await pool.query(`
+                SELECT u.email as creator_email, p.email as parent_email 
+                FROM users u
+                LEFT JOIN users p ON u.parent_admin_id = p.id
+                WHERE u.id = (SELECT created_by FROM reservations WHERE reservation_no = $1)
+            `, [reservationNo]);
+
+            if (hierarchyResult.rows.length > 0) {
+                const { creator_email, parent_email } = hierarchyResult.rows[0];
+                if (creator_email) ccEmails.push(creator_email);
+                if (parent_email) ccEmails.push(parent_email);
+            }
+        } catch (hierarchyErr) {
+            console.error("Error fetching hierarchy for CC:", hierarchyErr);
+        }
+
         const aptResult = await resend.emails.send({
             from: "booking@pajasaapartments.com",
             // to: [host_email, "accounts@pajasaapartments.com", "ps@pajasaapartments.com"],
             to: "harshitshukla6388@gmail.com",
+            cc: ccEmails.length > 0 ? ccEmails : undefined,
             subject: subject2,
             html,
             // attachments: [
@@ -1877,10 +1917,30 @@ export async function sendCancellationEmail({
 </body>
 </html>`;
 
+        // Fetch creator and parent admin for CC
+        let ccEmails = [];
+        try {
+            const hierarchyResult = await pool.query(`
+                SELECT u.email as creator_email, p.email as parent_email 
+                FROM users u
+                LEFT JOIN users p ON u.parent_admin_id = p.id
+                WHERE u.id = (SELECT created_by FROM reservations WHERE reservation_no = $1)
+            `, [reservation_no]);
+
+            if (hierarchyResult.rows.length > 0) {
+                const { creator_email, parent_email } = hierarchyResult.rows[0];
+                if (creator_email) ccEmails.push(creator_email);
+                if (parent_email) ccEmails.push(parent_email);
+            }
+        } catch (hierarchyErr) {
+            console.error("Error fetching hierarchy for CC:", hierarchyErr);
+        }
+
         const result = await resend.emails.send({
             from: "booking@pajasaapartments.com",
             // to: guest_email.split(',').map(e => e.trim()),
             to: ["harshitshukla6388@gmail.com"],
+            cc: ccEmails.length > 0 ? ccEmails : undefined,
             subject: subject,
             html: html
         });
