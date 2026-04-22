@@ -15,9 +15,9 @@ export const authMiddleware = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
     
-    // Fetch full user details from DB to ensure we have latest role/modules
+    // Fetch full user details from DB to ensure we have latest role/modules/status
     const result = await pool.query(
-      "SELECT id, username, email, role, modules, parent_admin_id FROM users WHERE id = $1",
+      "SELECT id, username, email, role, modules, parent_admin_id, status FROM users WHERE id = $1",
       [decoded.id]
     );
 
@@ -26,6 +26,17 @@ export const authMiddleware = async (req, res, next) => {
     }
 
     req.user = result.rows[0];
+
+    // Check if user is active
+    if (req.user.status !== "active") {
+      return res.status(403).json({ 
+        success: false, 
+        message: req.user.status === "pending" 
+          ? "Your account is pending approval by the Super Admin." 
+          : "Your account is inactive or has been rejected." 
+      });
+    }
+
     next();
   } catch (error) {
     console.error("Auth Middleware Error:", error);
@@ -38,6 +49,16 @@ export const checkSuperAdmin = (req, res, next) => {
     return res.status(403).json({ 
       success: false, 
       message: "Access denied. Only Super Admins can perform this action." 
+    });
+  }
+  next();
+};
+
+export const checkAdmin = (req, res, next) => {
+  if (!req.user || (req.user.role !== "Super Admin" && req.user.role !== "Admin")) {
+    return res.status(403).json({ 
+      success: false, 
+      message: "Access denied. You must be an Admin or Super Admin to perform this action." 
     });
   }
   next();

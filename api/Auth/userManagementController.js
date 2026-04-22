@@ -1,14 +1,24 @@
 import pool from "../../client.js";
 import bcrypt from "bcrypt";
 
-// Get all users (Super Admin only)
+// Get all users (Super Admin or Admin)
 export const getAllUsers = async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT id, username, email, role, modules, parent_admin_id, created_at 
-             FROM users 
-             ORDER BY created_at DESC`
-        );
+        let queryStr = `
+            SELECT id, username, email, role, status, modules, parent_admin_id, created_at 
+            FROM users 
+        `;
+        let params = [];
+
+        // If not Super Admin, only return users created by this admin or the admin themselves
+        if (req.user.role !== 'Super Admin') {
+            queryStr += ` WHERE parent_admin_id = $1 OR id = $1 `;
+            params.push(req.user.id);
+        }
+
+        queryStr += ` ORDER BY created_at DESC `;
+
+        const result = await pool.query(queryStr, params);
         res.status(200).json({ success: true, data: result.rows });
     } catch (error) {
         console.error("Get All Users error:", error);
@@ -16,12 +26,65 @@ export const getAllUsers = async (req, res) => {
     }
 };
 
-// Create a new user/admin (Super Admin only)
+// Get pending users (Super Admin only)
+export const getPendingUsers = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, username, email, role, status, modules, parent_admin_id, created_at 
+             FROM users 
+             WHERE status = 'pending'
+             ORDER BY created_at DESC`
+        );
+        res.status(200).json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error("Get Pending Users error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+// Approve user (Super Admin only)
+export const approveUser = async (req, res) => {
+    const { id } = req.params;
+    const { action } = req.body; // 'approve' or 'reject'
+
+    try {
+        const status = action === 'approve' ? 'active' : 'rejected';
+        const result = await pool.query(
+            "UPDATE users SET status = $1 WHERE id = $2 RETURNING id, username, email, role, status",
+            [status, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: `User ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error("Approve User error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+// Create a new user/admin
 export const createUser = async (req, res) => {
-    const { username, email, password, role, modules, parentAdminId } = req.body;
+    let { username, email, password, role, modules, parentAdminId } = req.body;
 
     if (!username || !email || !password || !role) {
         return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    // Role Enforcement
+    if (req.user.role === 'Admin') {
+        // Admins can ONLY create 'User' role
+        role = 'User';
+        parentAdminId = req.user.id;
+    } else if (req.user.role === 'Super Admin') {
+        // Super Admin can set parentAdminId or default to null
+        parentAdminId = parentAdminId || null;
     }
 
     try {
@@ -35,12 +98,12 @@ export const createUser = async (req, res) => {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // Insert user
+        // Insert user (Admin-created users are active by default)
         const newUser = await pool.query(
-            `INSERT INTO users (username, email, password_hash, role, modules, parent_admin_id) 
-             VALUES ($1, $2, $3, $4, $5, $6) 
-             RETURNING id, username, email, role, modules, parent_admin_id, created_at`,
-            [username, email, passwordHash, role, modules || [], parentAdminId || null]
+            `INSERT INTO users (username, email, password_hash, role, status, modules, parent_admin_id) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+             RETURNING id, username, email, role, status, modules, parent_admin_id, created_at`,
+            [username, email, passwordHash, role, 'active', modules || [], parentAdminId]
         );
 
         res.status(201).json({
@@ -66,6 +129,16 @@ export const updateUser = async (req, res) => {
             SET username = $1, email = $2, role = $3, modules = $4, parent_admin_id = $5 
         `;
         let params = [username, email, role, modules || [], parentAdminId || null];
+
+        // If not Super Admin, prevent changing role or parentAdminId
+        if (req.user.role !== 'Super Admin') {
+             // Fetch current user details to keep role/parentAdminId
+             const currentResult = await pool.query("SELECT role, parent_admin_id FROM users WHERE id = $1", [id]);
+             if (currentResult.rows.length > 0) {
+                 params[2] = currentResult.rows[0].role;
+                 params[4] = currentResult.rows[0].parent_admin_id;
+             }
+        }
 
         // If password is provided, hash it and update as well
         if (password && password.trim() !== "") {

@@ -2,7 +2,7 @@ import express from "express";
 import createHost from "./api/Hostapi/HostInfo.js";
 import { getAllHosts, deleteHost, updateHost } from "./api/Hostapi/hostListPage.js"
 import { signup, signin, logout } from "./api/Auth/authController.js";
-import { getAllUsers, createUser, updateUser, deleteUser } from "./api/Auth/userManagementController.js";
+import { getAllUsers, createUser, updateUser, deleteUser, getPendingUsers, approveUser } from "./api/Auth/userManagementController.js";
 import { getPinCode, getHost, createProperty } from "./api/Property/propertyinfo.js"
 import { Pincode } from "./api/Pincode/Pincodeinfo.js";
 import { AllPinCode } from "./api/Pincode/PincodeListPage.js"
@@ -16,7 +16,7 @@ import { sendEmail } from "./api/email/resend.js";
 import { createInvoice } from "./api/invioce/invioceform.js"
 import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice, downloadInvoice } from "./api/invioce/invoiceListPage.js"
 import { sendInvoiceEmail } from "./api/invioce/invoiceEmail.js";
-import { authMiddleware, checkModuleAccess, checkSuperAdmin } from "./middleware/auth.js";
+import { authMiddleware, checkModuleAccess, checkSuperAdmin, checkAdmin } from "./middleware/auth.js";
 
 const router = express.Router();
 
@@ -81,10 +81,14 @@ router.post("/invoices/send-email", authMiddleware, checkModuleAccess("invoice")
 
 
 
-// User Management (Super Admin Only)
-router.get("/users", authMiddleware, checkSuperAdmin, getAllUsers);
-router.post("/users", authMiddleware, checkSuperAdmin, createUser);
-router.put("/users/:id", authMiddleware, checkSuperAdmin, updateUser);
-router.delete("/users/:id", authMiddleware, checkSuperAdmin, deleteUser);
+// User Management
+router.get("/users", authMiddleware, checkAdmin, getAllUsers);
+router.post("/users", authMiddleware, checkAdmin, createUser);
+router.put("/users/:id", authMiddleware, checkAdmin, updateUser);
+router.delete("/users/:id", authMiddleware, checkAdmin, deleteUser);
+
+// User Approvals (Super Admin Only)
+router.get("/users/pending", authMiddleware, checkSuperAdmin, getPendingUsers);
+router.post("/users/:id/approve", authMiddleware, checkSuperAdmin, approveUser);
 
 export default router;
