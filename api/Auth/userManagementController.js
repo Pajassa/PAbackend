@@ -130,14 +130,30 @@ export const updateUser = async (req, res) => {
         `;
         let params = [username, email, role, modules || [], parentAdminId || null];
 
-        // If not Super Admin, prevent changing role or parentAdminId
+        // Permission Check for Admins
         if (req.user.role !== 'Super Admin') {
-             // Fetch current user details to keep role/parentAdminId
-             const currentResult = await pool.query("SELECT role, parent_admin_id FROM users WHERE id = $1", [id]);
-             if (currentResult.rows.length > 0) {
-                 params[2] = currentResult.rows[0].role;
-                 params[4] = currentResult.rows[0].parent_admin_id;
-             }
+            const permissionCheck = await pool.query(
+                "SELECT role, parent_admin_id FROM users WHERE id = $1", 
+                [id]
+            );
+
+            if (permissionCheck.rows.length === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            const targetUser = permissionCheck.rows[0];
+
+            // Admin can only update themselves or users they created
+            if (targetUser.parent_admin_id !== req.user.id && parseInt(id) !== req.user.id) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: "Access denied. You can only update your own users." 
+                });
+            }
+
+            // Prevent Admin from changing their own role or parent_admin_id
+            params[2] = targetUser.role; 
+            params[4] = targetUser.parent_admin_id;
         }
 
         // If password is provided, hash it and update as well
@@ -178,6 +194,25 @@ export const deleteUser = async (req, res) => {
     }
 
     try {
+        // Permission Check for Admins
+        if (req.user.role !== 'Super Admin') {
+            const permissionCheck = await pool.query(
+                "SELECT parent_admin_id FROM users WHERE id = $1", 
+                [id]
+            );
+
+            if (permissionCheck.rows.length === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            if (permissionCheck.rows[0].parent_admin_id !== req.user.id) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: "Access denied. You can only delete your own users." 
+                });
+            }
+        }
+
         const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING *", [id]);
 
         if (result.rows.length === 0) {
