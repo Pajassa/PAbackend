@@ -57,7 +57,7 @@ export const checkModuleAccess = (moduleName) => {
     }
 
     // Admins and Users check modules field
-    if (modules && modules.includes(moduleName)) {
+    if (modules && Array.isArray(modules) && modules.some(m => m.toLowerCase() === moduleName.toLowerCase())) {
       return next();
     }
 
