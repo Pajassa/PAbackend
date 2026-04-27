@@ -10,9 +10,12 @@ export const getAllUsers = async (req, res) => {
         `;
         let params = [];
 
+        // Hide users with 'deleted' status
+        queryStr += ` WHERE status != 'deleted' `;
+        
         // If not Super Admin, only return users created by this admin or the admin themselves
         if (req.user.role !== 'Super Admin') {
-            queryStr += ` WHERE parent_admin_id = $1 OR id = $1 `;
+            queryStr += ` AND (parent_admin_id = $1 OR id = $1) `;
             params.push(req.user.id);
         }
 
@@ -45,14 +48,30 @@ export const getPendingUsers = async (req, res) => {
 // Approve user (Super Admin only)
 export const approveUser = async (req, res) => {
     const { id } = req.params;
-    const { action } = req.body; // 'approve' or 'reject'
+    const { action, role, modules } = req.body; // 'approve' or 'reject', optional role and modules
 
     try {
         const status = action === 'approve' ? 'active' : 'rejected';
-        const result = await pool.query(
-            "UPDATE users SET status = $1 WHERE id = $2 RETURNING id, username, email, role, status",
-            [status, id]
-        );
+        
+        let queryStr = "UPDATE users SET status = $1";
+        let params = [status];
+
+        // If approving, also set the role and modules if provided
+        if (action === 'approve') {
+            if (role) {
+                queryStr += `, role = $${params.length + 1}`;
+                params.push(role);
+            }
+            if (modules) {
+                queryStr += `, modules = $${params.length + 1}`;
+                params.push(modules);
+            }
+        }
+
+        queryStr += ` WHERE id = $${params.length + 1} RETURNING id, username, email, role, status, modules`;
+        params.push(id);
+
+        const result = await pool.query(queryStr, params);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: "User not found" });
@@ -98,17 +117,23 @@ export const createUser = async (req, res) => {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // Insert user (Admin-created users are active by default)
+        // Insert user
+        // If Admin creates user, status is 'pending' (needs Super Admin approval)
+        // If Super Admin creates user, status is 'active'
+        const status = req.user.role === 'Admin' ? 'pending' : 'active';
+
         const newUser = await pool.query(
             `INSERT INTO users (username, email, password_hash, role, status, modules, parent_admin_id) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
              RETURNING id, username, email, role, status, modules, parent_admin_id, created_at`,
-            [username, email, passwordHash, role, 'active', modules || [], parentAdminId]
+            [username, email, passwordHash, role, status, modules || [], parentAdminId]
         );
 
         res.status(201).json({
             success: true,
-            message: "User created successfully",
+            message: status === 'pending' 
+                ? "User created successfully and is pending approval from the Super Admin." 
+                : "User created successfully",
             data: newUser.rows[0]
         });
 
@@ -213,7 +238,10 @@ export const deleteUser = async (req, res) => {
             }
         }
 
-        const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING *", [id]);
+        const result = await pool.query(
+            "UPDATE users SET status = 'deleted' WHERE id = $1 RETURNING *", 
+            [id]
+        );
 
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: "User not found" });
