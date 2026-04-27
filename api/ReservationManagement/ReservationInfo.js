@@ -166,6 +166,34 @@ function toFloat(value, defaultValue = 0) {
   return Number.isNaN(n) ? defaultValue : n;
 }
 
+// Helper for internal availability check
+async function checkAvailabilityInternal(client, propertyId, roomTypes, checkInDate, checkOutDate, excludeReservationId = null) {
+  if (!roomTypes || roomTypes.length === 0) return [];
+
+  let conflictQuery = `
+    SELECT DISTINCT
+        rb.room_type,
+        r.reservation_no,
+        r.guest_name
+    FROM room_bookings rb
+    JOIN reservations r ON rb.reservation_id = r.id
+    WHERE rb.property_id = $1
+        AND rb.status != 'Cancelled'
+        AND rb.room_type = ANY($2::text[])
+        AND rb.check_in_date < $4 
+        AND rb.check_out_date > $3
+  `;
+
+  const queryParams = [propertyId, roomTypes, checkInDate, checkOutDate];
+  if (excludeReservationId) {
+    conflictQuery += ` AND r.id != $5`;
+    queryParams.push(excludeReservationId);
+  }
+
+  const result = await client.query(conflictQuery, queryParams);
+  return result.rows;
+}
+
 export async function saveReservation(req, res) {
   const client = await pool.connect();
 
@@ -186,6 +214,21 @@ export async function saveReservation(req, res) {
     const roomSelection = rawRoomSelection ? rawRoomSelection.map(room => 
       typeof room === 'string' ? { roomType: room, occupancy: guestInfo.occupancy || '1' } : room
     ) : [];
+
+    // Extract room types for availability check
+    const roomTypes = roomSelection.map(r => r.roomType);
+    const checkInDate = guestInfo?.checkInDate || null;
+    const checkOutDate = guestInfo?.checkOutDate || null;
+
+    // Check availability before proceeding
+    if (roomTypes.length > 0 && checkInDate && checkOutDate) {
+      const conflicts = await checkAvailabilityInternal(client, propertyId, roomTypes, checkInDate, checkOutDate);
+      if (conflicts.length > 0) {
+        // Use a Set to deduplicate room types in the error message
+        const uniqueConflictedRooms = [...new Set(conflicts.map(c => c.room_type))].join(", ");
+        throw new Error(`The following rooms are already booked for these dates: ${uniqueConflictedRooms}`);
+      }
+    }
 
     // Generate reservation number
     // Generate reservation number
@@ -217,10 +260,6 @@ export async function saveReservation(req, res) {
     const reservationNo = `PAR-${yy}-${mm}-${String(nextNum).padStart(4, "0")}`;
 
     console.log("guestInfo received:", guestInfo);
-
-    // Extract dates
-    const checkInDate = guestInfo?.checkInDate || null;
-    const checkOutDate = guestInfo?.checkOutDate || null;
 
     // Validation
     if (!checkInDate) {
@@ -364,9 +403,13 @@ export async function saveReservation(req, res) {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error saving reservation:", error);
-    return res.status(500).json({
+    
+    // Check if it's a validation error (like room conflict) or a system error
+    const statusCode = error.message.includes("booked") ? 400 : 500;
+    
+    return res.status(statusCode).json({
       success: false,
-      message: "Error saving reservation",
+      message: error.message.includes("booked") ? error.message : "Error saving reservation",
       error: error.message,
     });
   } finally {
@@ -502,6 +545,27 @@ export async function updateReservation(req, res) {
       throw new Error("Reservation ID is required for update");
     }
 
+    // Extract room types and dates for availability check
+    const checkInDate =
+      guestInfo.checkInDate && guestInfo.checkInDate !== ""
+        ? guestInfo.checkInDate
+        : null;
+    const checkOutDate =
+      guestInfo.checkOutDate && guestInfo.checkOutDate !== ""
+        ? guestInfo.checkOutDate
+        : null;
+    const roomTypes = roomSelection.map(r => r.roomType);
+
+    // Check availability before proceeding (excluding current reservation)
+    if (roomTypes.length > 0 && checkInDate && checkOutDate) {
+      const conflicts = await checkAvailabilityInternal(client, propertyId, roomTypes, checkInDate, checkOutDate, id);
+      if (conflicts.length > 0) {
+        // Use a Set to deduplicate room types in the error message
+        const uniqueConflictedRooms = [...new Set(conflicts.map(c => c.room_type))].join(", ");
+        throw new Error(`The following rooms are already booked for these dates: ${uniqueConflictedRooms}`);
+      }
+    }
+
     // 0. Fetch current state for history (Full Snapshot)
     const oldDataQuery = `
       SELECT r.*,
@@ -518,14 +582,7 @@ export async function updateReservation(req, res) {
     const oldDataResult = await client.query(oldDataQuery, [id]);
 
     // ✅ Ensure date fields come from guestInfo
-    const checkInDate =
-      guestInfo.checkInDate && guestInfo.checkInDate !== ""
-        ? guestInfo.checkInDate
-        : null;
-    const checkOutDate =
-      guestInfo.checkOutDate && guestInfo.checkOutDate !== ""
-        ? guestInfo.checkOutDate
-        : null;
+    // (Dates already extracted above for availability check)
 
     let modificationTags = [];
     let newStatus = "Modified";
@@ -732,9 +789,13 @@ export async function updateReservation(req, res) {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating reservation:", error);
-    res.status(500).json({
+    
+    // Check if it's a validation error (like room conflict) or a system error
+    const statusCode = error.message.includes("booked") ? 400 : 500;
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error updating reservation",
+      message: error.message.includes("booked") ? error.message : "Error updating reservation",
       error: error.message,
     });
   } finally {
