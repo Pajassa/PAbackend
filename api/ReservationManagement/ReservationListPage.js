@@ -1,5 +1,4 @@
 import pool from "../../client.js";
-import { sendCancellationEmail } from "../email/resend.js";
 
 export const getAllReservations = async (req, res) => {
   try {
@@ -105,15 +104,6 @@ export async function deleteReservation(req, res) {
     await pool.query(deleteReservationQuery, [reservationId]);
 
     await pool.query("COMMIT"); // ✅ Commit transaction
-
-    // ✅ Send cancellation email AFTER successful commit
-    try {
-      const reservation = existsResult.rows[0];
-      await sendCancellationEmail(reservation);
-    } catch (emailError) {
-      console.error("Error sending cancellation email:", emailError);
-      // We don't fail the request here because the cancellation was successful
-    }
 
     return res.status(200).json({
       success: true,
