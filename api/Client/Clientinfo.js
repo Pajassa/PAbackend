@@ -16,6 +16,7 @@ export async function insertClient(req, res) {
       mobile_number,
       email_address,
       web_address,
+      client_nick_name,
     } = req.body;
 
     
@@ -25,12 +26,12 @@ export async function insertClient(req, res) {
       INSERT INTO clients (
         active, client_name, gst_no, street_address, street_address_2, 
         city, state, zip_code, phone_number, fax_number, mobile_number, 
-        email_address, web_address, created_at, updated_at
+        email_address, web_address, client_nick_name, created_at, updated_at
       ) 
       VALUES (
         $1, $2, $3, $4, $5, 
         $6, $7, $8, $9, $10, $11, 
-        $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $12, $13, $14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )
       RETURNING *;
     `;
@@ -49,6 +50,7 @@ export async function insertClient(req, res) {
       mobile_number,
       email_address,
       web_address,
+      client_nick_name,
     ];
 
     const result = await pool.query(query, values);
