@@ -1220,6 +1220,26 @@ export async function sendEmail(req, res) {
             console.error('Error fetching property_type:', err);
         }
 
+        // ✅ FETCH CLIENT NICK NAME FROM DB
+        let fetchedClientNickName = null;
+        try {
+            const clientQuery = `
+                SELECT c.client_nick_name 
+                FROM clients c
+                JOIN reservations r ON c.id = r.client_id
+                WHERE r.reservation_no = $1
+            `;
+            const clientResult = await pool.query(clientQuery, [reservationNo]);
+            if (clientResult.rows.length > 0) {
+                fetchedClientNickName = clientResult.rows[0].client_nick_name;
+            }
+        } catch (err) {
+            console.error('Error fetching client_nick_name:', err);
+        }
+
+        const finalClientName = fetchedClientNickName || clientName;
+        const finalGuestType = fetchedClientNickName || guesttype;
+
         // ✅ FETCH ROOM SELECTION FROM DB IF MISSING
         let finalRoomSelection = roomSelection;
         if (!finalRoomSelection || (Array.isArray(finalRoomSelection) && finalRoomSelection.length === 0)) {
@@ -1442,9 +1462,9 @@ export async function sendEmail(req, res) {
             amount,
             base_rate,
             taxes,
-            tariff_type,
-            clientName,
-            guestemail,
+            tariff_type: tariff_type,
+            clientName: finalClientName,
+            guestemail: guestemail,
             originalBooking,
             modificationType,
             Title
@@ -1467,7 +1487,7 @@ export async function sendEmail(req, res) {
             chargeabledays,
             amount,
             modeofpayment,
-            guesttype,
+            finalGuestType,
             apartment_type,
             formattedRoomType,
             inclusions,
@@ -1522,10 +1542,10 @@ export async function sendEmail(req, res) {
             modeofpayment,
             amount,
             base_rate,
-            taxes,
-            tariff_type,
-            clientName,
-            guestemail,
+            taxes: taxes,
+            tariff_type: tariff_type,
+            clientName: finalClientName,
+            guestemail: guestemail,
             originalBooking,
             modificationType,
             Title

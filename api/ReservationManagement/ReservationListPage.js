@@ -17,7 +17,7 @@ export const getAllReservations = async (req, res) => {
         p.Location, p.city, p.Landmark, p.contact_person,
         p.contact_number AS contact_person_number,
           p.caretaker_name, p.caretaker_number, p.property_url,
-          c.client_name, c.state, c.zip_code,
+          c.client_name, c.client_nick_name, c.state, c.zip_code,
           rai.apartment_type, rai.host_name, rai.host_payment_mode, rai.host_email,
           rai.host_base_rate, rai.host_taxes, rai.host_total_amount,
           COALESCE(
@@ -50,7 +50,7 @@ r.id,
   p.Location, p.city, p.Landmark, p.contact_person,
   p.contact_number,
   p.caretaker_name, p.caretaker_number, p.property_url,
-  c.client_name, c.state, c.zip_code,
+  c.client_name, c.client_nick_name, c.state, c.zip_code,
   rai.apartment_type, rai.host_name, rai.host_payment_mode, rai.host_email,
   rai.host_base_rate,rai.host_taxes,rai.host_total_amount,
   rai.services

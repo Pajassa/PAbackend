@@ -426,7 +426,7 @@ async function fetchReservationData(id) {
     r.*,
       to_char(r.check_in_date, 'YYYY-MM-DD') as check_in_date_str,
       to_char(r.check_out_date, 'YYYY-MM-DD') as check_out_date_str,
-      c.client_name,
+      c.client_name, c.client_nick_name,
       p.address1, p.address2, p.address3, p.city, p.location, p.property_type, p.thumbnail, p.property_url,
       p.master_bedroom, p.common_bedroom, p.host_id,
       hi.host_name, hi.host_email,

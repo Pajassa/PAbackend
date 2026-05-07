@@ -83,7 +83,8 @@ export async function updateClient(req, res) {
       fax_number,
       mobile_number,
       email_address,
-      web_address
+      web_address,
+      client_nick_name
     } = req.body;
 
     if (isNaN(clientId)) {
@@ -119,8 +120,9 @@ export async function updateClient(req, res) {
         mobile_number = $11, 
         email_address = $12,
         web_address = $13,
-        updated_at = $14
-      WHERE id = $15
+        client_nick_name = $14,
+        updated_at = $15
+      WHERE id = $16
       RETURNING *;
     `;
 
@@ -140,8 +142,9 @@ export async function updateClient(req, res) {
       mobile_number,
       email_address,
       web_address,
-      updatedAt,  // ✅ $14
-      clientId,   // ✅ $15
+      client_nick_name,
+      updatedAt,  // ✅ $15
+      clientId,   // ✅ $16
     ]);
 
     await pool.query("COMMIT");
