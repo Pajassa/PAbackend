@@ -195,7 +195,7 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
     doc.font('Roboto-Bold')
         .text('Udyam Registration No: ', rightX, rightY, { continued: true })
         .font('Roboto-Regular')
-        .text('MH-19-0215452');
+        .text('MH-19-0432578');
 
     // ===== MAIN TABLE =====
     yPos = Math.max(yPos + 25, rightY + 25);
