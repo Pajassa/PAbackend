@@ -145,7 +145,8 @@ export async function UpdateProperty(req, res) {
             address2,
             address3,
             thumbnail,
-            property_url
+            property_url,
+            google_map_url
         } = req.body;
 
         // Basic validation
@@ -165,8 +166,8 @@ export async function UpdateProperty(req, res) {
                 post_id = $7, property_type = $8, contact_person = $9, contact_number = $10, email_id = $11,
                 caretaker_name = $12, caretaker_number = $13, note = $14, check_in_time = $15, check_out_time = $16,
                 master_bedroom = $17, common_bedroom = $18, landmark = $19, address1 = $20, address2 = $21, address3 = $22,
-                thumbnail = $23, property_url = $24, updated_at = CURRENT_TIMESTAMP
-            WHERE property_id = $25
+                thumbnail = $23, property_url = $24, google_map_url = $25, updated_at = CURRENT_TIMESTAMP
+            WHERE property_id = $26
             RETURNING *
         `;
 
@@ -175,7 +176,7 @@ export async function UpdateProperty(req, res) {
             post_id, property_type, contact_person, contact_number, email_id,
             caretaker_name, caretaker_number, note, safeCheckInTime, safeCheckOutTime,
             master_bedroom, common_bedroom, landmark, address1, address2, address3,
-            thumbnail, property_url, property_Id
+            thumbnail, property_url, google_map_url, property_Id
         ];
 
         const result = await client.query(updateQuery, values);

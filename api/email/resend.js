@@ -94,7 +94,8 @@ const generateGuestPdfHtml = ({
     guestemail,
     originalBooking,
     modificationType,
-    Title
+    Title,
+    google_map_url
 }) => `
 <!DOCTYPE html>
 <html>
@@ -288,7 +289,15 @@ const generateGuestPdfHtml = ({
         <div class="section-content">
             <div style="grid-column: span 2;">
                 <label class="label">Apartment Full Address</label>
-                <div class="value">${address1}, ${address2}, ${address3}</div>
+                <div class="value">
+                    ${address1}, ${address2}, ${address3}
+                    ${google_map_url ? `
+                    <div style="margin-top: 8px;">
+                        <a href="${google_map_url}" target="_blank" style="color: #f4a01e; text-decoration: none; font-size: 14px; font-weight: 800;">
+                            📍 View on Google Maps
+                        </a>
+                    </div>` : ''}
+                </div>
             </div>
             <div>
                 <label class="label">Property Type</label>
@@ -388,7 +397,8 @@ const generateApartmentPdfHtml = ({
     hostPaymentDetails,
     services,
     check_in_time,
-    check_out_time
+    check_out_time,
+    google_map_url
 }) => `
 <!DOCTYPE html>
 <html>
@@ -533,7 +543,15 @@ const generateApartmentPdfHtml = ({
             </div>
             <div style="grid-column: span 2;">
                 <label class="label">Apartment Full Address</label>
-                <div class="value">${address1}, ${address2}, ${address3}</div>
+                <div class="value">
+                    ${address1}, ${address2}, ${address3}
+                    ${google_map_url ? `
+                    <div style="margin-top: 8px;">
+                        <a href="${google_map_url}" target="_blank" style="color: #f4a01e; text-decoration: none; font-size: 14px; font-weight: 800;">
+                            📍 View on Google Maps
+                        </a>
+                    </div>` : ''}
+                </div>
             </div>
         </div>
     </div>
@@ -678,7 +696,8 @@ const generateGuestEmailHtml = ({
     guestemail,
     originalBooking,
     modificationType,
-    Title
+    Title,
+    google_map_url
 }) => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -816,7 +835,15 @@ const generateGuestEmailHtml = ({
                     <tr>
                         <td colspan="2" style="padding-bottom: 20px;">
                             <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Apartment Full Address</label>
-                            <div style="font-size: 16px; font-weight: 700; color: #0f172a; line-height: 1.5;">${address1}, ${address2}, ${address3}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a; line-height: 1.5;">
+                                ${address1}, ${address2}${address3 ? `, ${address3}` : ''}
+                                ${google_map_url ? `
+                                <div style="margin-top: 8px;">
+                                    <a href="${google_map_url}" target="_blank" style="color: #f4a01e; text-decoration: none; font-size: 14px; font-weight: 800;">
+                                        📍 View on Google Maps
+                                    </a>
+                                </div>` : ''}
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -924,7 +951,8 @@ const generateApartmentEmailHtml = ({
     occupancy,
     host_payment_mode,
     hostPaymentDetails,
-    services
+    services,
+    google_map_url
 }) => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1000,7 +1028,15 @@ const generateApartmentEmailHtml = ({
                         </td>
                         <td width="50%" valign="top">
                             <label style="display: block; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Apartment Address</label>
-                            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${address1}, ${address2}</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">
+                                ${address1}, ${address2}${address3 ? `, ${address3}` : ''}
+                                ${google_map_url ? `
+                                <div style="margin-top: 8px;">
+                                    <a href="${google_map_url}" target="_blank" style="color: #f4a01e; text-decoration: none; font-size: 13px; font-weight: 800;">
+                                        📍 View on Google Maps
+                                    </a>
+                                </div>` : ''}
+                            </div>
                         </td>
                     </tr>
                 </table>
@@ -1237,6 +1273,23 @@ export async function sendEmail(req, res) {
             console.error('Error fetching client_nick_name:', err);
         }
 
+        // ✅ FETCH GOOGLE MAP URL FROM DB
+        let fetchedGoogleMapUrl = null;
+        try {
+            const mapUrlQuery = `
+                SELECT p.google_map_url 
+                FROM properties p
+                JOIN reservations r ON p.property_id = r.property_id
+                WHERE r.reservation_no = $1
+            `;
+            const mapUrlResult = await pool.query(mapUrlQuery, [reservationNo]);
+            if (mapUrlResult.rows.length > 0) {
+                fetchedGoogleMapUrl = mapUrlResult.rows[0].google_map_url;
+            }
+        } catch (err) {
+            console.error('Error fetching google_map_url:', err);
+        }
+
         const finalClientName = fetchedClientNickName || clientName;
         const finalGuestType = fetchedClientNickName || guesttype;
 
@@ -1467,7 +1520,8 @@ export async function sendEmail(req, res) {
             guestemail: guestemail,
             originalBooking,
             modificationType,
-            Title
+            Title,
+            google_map_url: fetchedGoogleMapUrl
         });
 
 
@@ -1511,7 +1565,8 @@ export async function sendEmail(req, res) {
             host_taxes,
             host_total_amount,
             fetchedHostName,
-            fetchedPropertyType
+            fetchedPropertyType,
+            fetchedGoogleMapUrl
         );
 
         if (aptResult.error) {
@@ -1548,7 +1603,8 @@ export async function sendEmail(req, res) {
             guestemail: guestemail,
             originalBooking,
             modificationType,
-            Title
+            Title,
+            google_map_url: fetchedGoogleMapUrl
         });
 
         const guestPdfBuffer = await generatePdfBuffer(guestPdfHtml);
@@ -1633,7 +1689,8 @@ async function sendEmailtoApartment(
     host_taxes,
     host_total_amount,
     fetchedHostName,
-    fetchedPropertyType
+    fetchedPropertyType,
+    google_map_url
 ) {
     const hostTaxAmount = (host_base_rate * host_taxes) / 100;
     const hostName = fetchedHostName || "";
@@ -1693,7 +1750,8 @@ async function sendEmailtoApartment(
         occupancy,
         host_payment_mode,
         hostPaymentDetails,
-        services
+        services,
+        google_map_url
     });
 
     const pdfHtml = generateApartmentPdfHtml({
@@ -1719,7 +1777,8 @@ async function sendEmailtoApartment(
         hostPaymentDetails,
         services,
         check_in_time,
-        check_out_time
+        check_out_time,
+        google_map_url
     });
 
     try {
