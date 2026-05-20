@@ -34,8 +34,8 @@ const createHost = async (req, res) => {
     // 2️⃣ Insert into host_information
     const hostResult = await client.query(
       `INSERT INTO host_information 
-       (host_name, host_owner_name, host_pan_number, rating, host_email, host_contact_number)
-       VALUES ($1, $2, $3, $4, $5, $6) 
+       (host_name, host_owner_name, host_pan_number, rating, host_email, host_contact_number, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING host_id, host_name, host_owner_name, host_pan_number, rating, host_email, host_contact_number`,
       [
         host_name.trim(),
@@ -43,7 +43,8 @@ const createHost = async (req, res) => {
         host_pan_number.toUpperCase().trim(),
         rating,
         host_email.toLowerCase().trim(),
-        host_contact_number.trim()
+        host_contact_number.trim(),
+        req.user.id
       ]
     );
 

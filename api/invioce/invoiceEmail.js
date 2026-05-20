@@ -176,11 +176,31 @@ export const sendInvoiceEmail = async (req, res) => {
         const sendTo = (targetEmail && targetEmail !== "") ? targetEmail : "harshitshukla6388@gmail.com";
         const emailTo = Array.isArray(sendTo) ? sendTo : [sendTo];
 
-        console.log("Sending email to:", emailTo);
+        // Fetch creator and parent admin for CC
+        let ccEmails = [];
+        try {
+            const hierarchyResult = await pool.query(`
+                SELECT u.email as creator_email, p.email as parent_email 
+                FROM users u
+                LEFT JOIN users p ON u.parent_admin_id = p.id
+                WHERE u.id = (SELECT created_by FROM invoices WHERE id = $1)
+            `, [invoiceId]);
+
+            if (hierarchyResult.rows.length > 0) {
+                const { creator_email, parent_email } = hierarchyResult.rows[0];
+                if (creator_email) ccEmails.push(creator_email);
+                if (parent_email) ccEmails.push(parent_email);
+            }
+        } catch (hierarchyErr) {
+            console.error("Error fetching hierarchy for CC:", hierarchyErr);
+        }
+
+        console.log("Sending email to:", emailTo, "CC:", ccEmails);
         const { data, resendError } = await resend.emails.send({
             from: "booking@pajasaapartments.com",
             // to: ["harshitshukla6388@gmail.com"],
             to: emailTo,
+            cc: ccEmails.length > 0 ? ccEmails : undefined,
             subject: `${invoiceData.invoice_number || invoiceNumber} : Invoice Generated For Stay At PAJASA Apartments`,
             html: htmlContent,
             attachments: [
