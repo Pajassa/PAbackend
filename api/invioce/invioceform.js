@@ -57,9 +57,20 @@ export const createInvoice = async (req, res) => {
     if (!finalInvoiceNumber || finalInvoiceNumber.trim() === '') {
       // Auto-generate logic
       const now = new Date();
-      const year = String(now.getFullYear()).slice(-2);
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const prefix = `PAR-${year}-${month}-`;
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-11
+      
+      let fyStartYear, fyEndYear;
+      if (currentMonth >= 3) { // April or later
+        fyStartYear = currentYear;
+        fyEndYear = currentYear + 1;
+      } else {
+        fyStartYear = currentYear - 1;
+        fyEndYear = currentYear;
+      }
+      
+      const fyStr = `${String(fyStartYear).slice(-2)}${String(fyEndYear).slice(-2)}`;
+      const prefix = `PAMH${fyStr}`;
 
       const lastInvoiceQuery = `
         SELECT invoice_number 
@@ -71,17 +82,15 @@ export const createInvoice = async (req, res) => {
       let maxSequence = 0;
       for (const row of lastInvoiceResult.rows) {
         if (!row.invoice_number) continue;
-        const parts = row.invoice_number.split('-');
-        if (parts.length >= 4) {
-          const seq = parseInt(parts[3], 10);
-          if (!isNaN(seq) && seq > maxSequence) {
-            maxSequence = seq;
-          }
+        const seqStr = row.invoice_number.slice(prefix.length);
+        const seq = parseInt(seqStr, 10);
+        if (!isNaN(seq) && seq > maxSequence) {
+          maxSequence = seq;
         }
       }
 
       const nextSequence = maxSequence + 1;
-      const sequenceString = String(nextSequence).padStart(6, '0');
+      const sequenceString = String(nextSequence).padStart(3, '0');
       finalInvoiceNumber = `${prefix}${sequenceString}`;
     } else {
       const checkQuery = `SELECT id FROM invoices WHERE invoice_number = $1`;
