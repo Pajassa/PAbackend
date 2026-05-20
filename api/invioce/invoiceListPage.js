@@ -3,6 +3,21 @@ import pool from "../../client.js";
 export const getAllInvoices = async (req, res) => {
   const client = await pool.connect();
   try {
+    const { id: userId, role } = req.user;
+
+    let filterQuery = "";
+    let filterParams = [];
+
+    if (role === "Super Admin") {
+      filterQuery = "1=1";
+    } else if (role === "Admin") {
+      filterQuery = "(created_by = $1 OR created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
+      filterParams.push(userId);
+    } else {
+      filterQuery = "created_by = $1";
+      filterParams.push(userId);
+    }
+
     const query = `
       SELECT 
         id, 
@@ -13,10 +28,11 @@ export const getAllInvoices = async (req, res) => {
         status,
         created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' as created_at 
       FROM invoices 
+      WHERE ${filterQuery}
       ORDER BY created_at DESC
     `;
 
-    const result = await client.query(query);
+    const result = await client.query(query, filterParams);
 
     // Fetch line items for each invoice
     const invoicesWithLineItems = await Promise.all(
