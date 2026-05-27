@@ -1,7 +1,7 @@
 import express from "express";
 import createHost from "./api/Hostapi/HostInfo.js";
 import { getAllHosts, deleteHost, updateHost } from "./api/Hostapi/hostListPage.js"
-import { signup, signin, logout } from "./api/Auth/authController.js";
+import { signup, signin, logout, forgotPassword, resetPassword } from "./api/Auth/authController.js";
 import { getAllUsers, createUser, updateUser, deleteUser, getPendingUsers, approveUser } from "./api/Auth/userManagementController.js";
 import { getPinCode, getHost, createProperty } from "./api/Property/propertyinfo.js"
 import { Pincode } from "./api/Pincode/Pincodeinfo.js";
@@ -25,6 +25,8 @@ const router = express.Router();
 router.post("/signup", signup);
 router.post("/signin", signin);
 router.post("/logout", logout);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 
 
