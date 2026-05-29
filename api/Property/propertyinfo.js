@@ -187,6 +187,10 @@ export async function createProperty(req, res) {
       property_url,
       google_map_url,
       created_by,
+      pajasa_operation_manager_name,
+      pajasa_operation_manager_number,
+      pajasa_operation_manager_email,
+      booking_at,
     } = req.body;
 
     // Basic validation
@@ -208,14 +212,17 @@ export async function createProperty(req, res) {
         post_id, property_type, contact_person, contact_number, email_id,
         caretaker_name, caretaker_number, note, check_in_time, check_out_time,
         master_bedroom, common_bedroom, landmark, address1, address2, address3,
-        thumbnail, property_url, created_by, google_map_url
+        thumbnail, property_url, created_by, google_map_url,
+        pajasa_operation_manager_name, pajasa_operation_manager_number,
+        pajasa_operation_manager_email, booking_at
       )
       VALUES (
         $1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10, $11,
         $12, $13, $14, $15, $16,
         $17, $18, $19, $20, $21, $22,
-        $23, $24, $25, $26
+        $23, $24, $25, $26,
+        $27, $28, $29, $30
       )
       RETURNING property_id, property_status, host_id, pincode_id
     `;
@@ -247,6 +254,10 @@ export async function createProperty(req, res) {
       property_url,
       created_by,
       google_map_url,
+      pajasa_operation_manager_name,
+      pajasa_operation_manager_number,
+      pajasa_operation_manager_email,
+      booking_at,
     ];
 
     const result = await pool.query(insertQuery, values);

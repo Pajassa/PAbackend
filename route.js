@@ -1,7 +1,7 @@
 import express from "express";
 import createHost from "./api/Hostapi/HostInfo.js";
 import { getAllHosts, deleteHost, updateHost } from "./api/Hostapi/hostListPage.js"
-import { signup, signin, logout } from "./api/Auth/authController.js";
+import { signup, signin, logout, forgotPassword, resetPassword } from "./api/Auth/authController.js";
 import { getAllUsers, createUser, updateUser, deleteUser, getPendingUsers, approveUser } from "./api/Auth/userManagementController.js";
 import { getPinCode, getHost, createProperty } from "./api/Property/propertyinfo.js"
 import { Pincode } from "./api/Pincode/Pincodeinfo.js";
@@ -12,6 +12,7 @@ import { ClientListPage, deleteClient, updateClient } from "./api/Client/ClientL
 import { getClientById } from "./api/Client/ClientListPage.js";
 import { ClientList, getProperty, checkRoomAvailability, saveReservation, getReservationById, updateReservation } from "./api/ReservationManagement/ReservationInfo.js"
 import { getAllReservations, deleteReservation } from "./api/ReservationManagement/ReservationListPage.js"
+import { getBookingReportData, downloadBookingReport, sendBookingReportEmail } from "./api/ReservationManagement/bookingReportController.js";
 import { sendEmail } from "./api/email/resend.js";
 import { createInvoice } from "./api/invioce/invioceform.js"
 import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice, downloadInvoice } from "./api/invioce/invoiceListPage.js"
@@ -25,6 +26,8 @@ const router = express.Router();
 router.post("/signup", signup);
 router.post("/signin", signin);
 router.post("/logout", logout);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 
 
@@ -68,6 +71,11 @@ router.put("/updateReservation", authMiddleware, checkModuleAccess("reservation"
 router.get("/getAllReservations", authMiddleware, checkModuleAccess("reservation"), getAllReservations);
 router.delete("/deleteReservation", authMiddleware, checkModuleAccess("reservation"), deleteReservation)
 router.post("/sendemail", authMiddleware, checkModuleAccess("reservation"), sendEmail);
+
+// Booking Report
+router.get("/booking-report", authMiddleware, checkModuleAccess("reservation"), getBookingReportData);
+router.get("/booking-report/download", authMiddleware, checkModuleAccess("reservation"), downloadBookingReport);
+router.post("/booking-report/send-email", authMiddleware, checkModuleAccess("reservation"), sendBookingReportEmail);
 
 
 // Invoice
