@@ -90,7 +90,7 @@ export const createInvoice = async (req, res) => {
       }
 
       const nextSequence = maxSequence + 1;
-      const sequenceString = String(nextSequence).padStart(3, '0');
+      const sequenceString = String(nextSequence).padStart(4, '0');
       finalInvoiceNumber = `${prefix}${sequenceString}`;
     } else {
       const checkQuery = `SELECT id FROM invoices WHERE invoice_number = $1`;
