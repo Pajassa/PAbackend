@@ -11,25 +11,29 @@ export const getAllInvoices = async (req, res) => {
     if (role === "Super Admin") {
       filterQuery = "1=1";
     } else if (role === "Admin") {
-      filterQuery = "(created_by = $1 OR created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
+      filterQuery = "(i.created_by = $1 OR i.created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
       filterParams.push(userId);
     } else {
-      filterQuery = "created_by = $1";
+      filterQuery = "i.created_by = $1";
       filterParams.push(userId);
     }
 
     const query = `
       SELECT 
-        id, 
-        invoice_number, 
-        invoice_date, 
-        invoice_to, 
-        grand_total, 
-        status,
-        created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' as created_at 
-      FROM invoices 
+        i.id, 
+        i.invoice_number, 
+        i.invoice_date, 
+        i.invoice_to, 
+        i.grand_total, 
+        i.status,
+        i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' as created_at,
+        c.client_nick_name,
+        c.client_name
+      FROM invoices i
+      LEFT JOIN reservations r ON i.reservation_id = r.id
+      LEFT JOIN clients c ON r.client_id = c.id
       WHERE ${filterQuery}
-      ORDER BY created_at DESC
+      ORDER BY i.created_at DESC
     `;
 
     const result = await client.query(query, filterParams);
@@ -133,7 +137,7 @@ export const getInvoiceById = async (req, res) => {
     const invoiceQuery = `
       SELECT i.*, 
              r.client_id,
-             c.client_name, c.street_address, c.street_address_2, 
+             c.client_name, c.client_nick_name, c.street_address, c.street_address_2, 
              c.city, c.state, c.zip_code, c.email_address
       FROM invoices i
       LEFT JOIN reservations r ON i.reservation_id = r.id
