@@ -26,6 +26,7 @@ export const getAllInvoices = async (req, res) => {
         i.invoice_to, 
         i.grand_total, 
         i.status,
+        i.secure_token,
         i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' as created_at,
         c.client_nick_name,
         c.client_name
@@ -91,7 +92,8 @@ export const getAllInvoices = async (req, res) => {
 
         return {
           ...invoice,
-          line_items: lineItems
+          line_items: lineItems,
+          secure_token: invoice.secure_token
         };
       })
     );
@@ -494,9 +496,9 @@ export const downloadInvoice = async (req, res) => {
     const { generateInvoicePDF } = await import('./pdfGenerator.js');
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=Invoice_${invoice.invoice_number}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoice_number}.pdf"`);
 
-    generateInvoicePDF(invoice, lineItems, res);
+    await generateInvoicePDF(invoice, lineItems, res);
 
   } catch (error) {
     console.error("Error downloading invoice:", error);
