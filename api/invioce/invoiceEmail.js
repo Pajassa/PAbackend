@@ -205,7 +205,7 @@ export const sendInvoiceEmail = async (req, res) => {
             html: htmlContent,
             attachments: [
                 {
-                    filename: `invoice-${invoiceData.invoice_number || invoiceNumber || 'details'}.pdf`,
+                    filename: `${invoiceData.invoice_number || invoiceNumber || 'invoice'}.pdf`,
                     content: Buffer.from(pdfBuffer),
                 }
             ]

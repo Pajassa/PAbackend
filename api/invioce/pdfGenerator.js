@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 import { numberToWords } from '../../helpers/numberToWords.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const generateInvoicePDF = (invoice, lineItems, res) => {
+export const generateInvoicePDF = async (invoice, lineItems, res) => {
     const doc = new PDFDocument({
         size: 'A4',
         margin: 20,
@@ -553,25 +554,76 @@ export const generateInvoicePDF = (invoice, lineItems, res) => {
 
 
     // ===== FOOTER NOTES =====
+    const onlineUrl = `https://billing.pajasaapartments.com/invoice/${invoice.invoice_number}/${invoice.secure_token}`;
+    let qrBuffer = null;
+    try {
+        qrBuffer = await QRCode.toBuffer(onlineUrl, { type: 'png', margin: 1, width: 85 });
+    } catch (qrError) {
+        console.error("Failed to generate QR Code for PDF:", qrError);
+    }
+
+    if (qrBuffer) {
+        doc.save();
+        // 1. Draw Big QR Code in the left corner
+        doc.image(qrBuffer, 25, yPos - 5, { width: 80, height: 80 });
+
+        // 2. Draw "View Invoice Online" details next to the QR Code
+        doc.fontSize(8)
+            .font('Roboto-Bold')
+            .fillColor('#000000')
+            .text('View Invoice Online', 115, yPos);
+            
+        // Draw "Pay Invoice" Button next to QR Code
+        const btnX = 115;
+        const btnY = yPos + 12;
+        const btnW = 75;
+        const btnH = 14;
+        doc.fillColor('#FF9800')
+           .roundedRect(btnX, btnY, btnW, btnH, 2)
+           .fill();
+        doc.fillColor('#FFFFFF')
+           .font('Roboto-Bold')
+           .fontSize(7)
+           .text('Pay Invoice', btnX, btnY + 3.5, { align: 'center', width: btnW });
+        doc.link(btnX, btnY, btnW, btnH, onlineUrl);
+        doc.restore();
+
+        // Draw Scan Info
+        doc.fontSize(6)
+            .font('Roboto-Regular')
+            .fillColor('#666666')
+            .text('Scan QR to view & pay online', 115, yPos + 30, { width: 130 });
+
+        // Draw URL
+        doc.fontSize(5)
+            .font('Roboto-Regular')
+            .fillColor('#0000EE')
+            .text(onlineUrl, 115, yPos + 40, { width: 130, underline: true })
+            .link(115, yPos + 40, 130, 15, onlineUrl);
+
+        // 3. Draw vertical divider between online pay and notes
+        doc.moveTo(255, yPos - 5).lineTo(255, yPos + 75).lineWidth(0.5).stroke('#CCCCCC');
+    }
+
     doc.fontSize(7)
         .font('Roboto-Regular')
         .fillColor('#000000')
-        .text('1. Please issue cheque in the name of PAJASA STAY SOLUTIONS PVT. LTD.', 25, yPos);
+        .text('1. Please issue cheque in the name of PAJASA STAY SOLUTIONS PVT. LTD.', 270, yPos);
 
     yPos += 9;
-    doc.text('2. Current A/C NO : 914020029004193', 25, yPos);
+    doc.text('2. Current A/C NO : 914020029004193', 270, yPos);
 
     yPos += 9;
-    doc.text('3. Account Holder Bank : Axis Bank', 25, yPos);
+    doc.text('3. Account Holder Bank : Axis Bank', 270, yPos);
 
     yPos += 9;
-    doc.text('4. IFSC Code: UTIB0000246', 25, yPos);
+    doc.text('4. IFSC Code: UTIB0000246', 270, yPos);
 
     yPos += 9;
-    doc.text('5. PAN. NO: AAHCP7561R', 25, yPos);
+    doc.text('5. PAN. NO: AAHCP7561R', 270, yPos);
 
     yPos += 9;
-    doc.text('6. HSN CODE : 996311, Accommodation Services', 25, yPos);
+    doc.text('6. HSN CODE : 996311, Accommodation Services', 270, yPos);
 
     // Authorized Signatory (with seal placeholder)
     doc.fontSize(8)

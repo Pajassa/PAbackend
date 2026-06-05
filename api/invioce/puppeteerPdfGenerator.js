@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import QRCode from 'qrcode';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +40,14 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
         }
     } catch (err) {
         console.error("Logo not found for PDF", err);
+    }
+
+    const onlineUrl = `https://billing.pajasaapartments.com/invoice/${invoiceData.invoice_number}/${invoiceData.secure_token}`;
+    let qrCodeDataUrl = '';
+    try {
+        qrCodeDataUrl = await QRCode.toDataURL(onlineUrl, { margin: 1, width: 100 });
+    } catch (qrErr) {
+        console.error("QR Code generation failed for Puppeteer PDF", qrErr);
     }
 
     // --- DYNAMIC CALCULATIONS ---
@@ -295,19 +304,31 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
         Amount (In Words) : ${amountInWords} Only
     </div>
 
-    <div class="bank-details">
-        1. Please issue cheque in the name of <strong>PAJASA STAY SOLUTIONS PVT. LTD.</strong><br>
-        2. Current A/C NO : 914020029004193<br>
-        3. Account Holder Bank : Axis Bank<br>
-        4. IFSC Code : UTIB0000246<br>
-        5. PAN. NO : AAHCP7561R<br>
-        6. HSN CODE : 996311; Accomodation Services
-    </div>
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px;">
+        <div class="online-payment-section" style="width: 40%; display: flex; align-items: center; gap: 12px; border-right: 1px solid #ccc; padding-right: 15px;">
+            <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 80px; height: 80px; flex-shrink: 0;">
+            <div>
+                <div style="font-weight: bold; font-size: 8.5pt; margin-bottom: 2px;">View Invoice Online</div>
+                <a href="${onlineUrl}" style="background-color: #FF9800; color: white; padding: 4.5px 9px; border-radius: 2px; text-decoration: none; font-weight: bold; font-size: 7.5pt; display: inline-block; margin-bottom: 4px;">Pay Invoice</a>
+                <div style="font-size: 6.5pt; color: #666; margin-bottom: 2px;">Scan QR to view & pay online</div>
+                <a href="${onlineUrl}" style="font-size: 5.5pt; color: #0000EE; text-decoration: underline; word-break: break-all; display: block; max-width: 120px;">${onlineUrl}</a>
+            </div>
+        </div>
 
-    <div class="authorized-section">
-        <div class="signatory-container">
-            <div class="stamp-area"></div>
-            <div class="signatory-label">Authorized Signatory</div>
+        <div class="bank-details" style="margin-top: 0; width: 40%; border-right: 1px solid #ccc; padding-right: 15px; padding-left: 10px;">
+            1. Please issue cheque in the name of <strong>PAJASA STAY SOLUTIONS PVT. LTD.</strong><br>
+            2. Current A/C NO : 914020029004193<br>
+            3. Account Holder Bank : Axis Bank<br>
+            4. IFSC Code : UTIB0000246<br>
+            5. PAN. NO : AAHCP7561R<br>
+            6. HSN CODE : 996311; Accomodation Services
+        </div>
+
+        <div class="authorized-section" style="margin-top: 0; width: 20%; display: flex; justify-content: center;">
+            <div class="signatory-container" style="text-align: center;">
+                <div class="stamp-area" style="height: 50px; width: 50px; border: 1px solid #000; border-radius: 50%; margin: 0 auto 5px auto;"></div>
+                <div class="signatory-label" style="font-weight: bold; font-size: 8pt;">Authorized Signatory</div>
+            </div>
         </div>
     </div>
 </body>

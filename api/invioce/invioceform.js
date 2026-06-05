@@ -1,4 +1,5 @@
 import pool from "../../client.js";
+import crypto from "crypto";
 
 export const createInvoice = async (req, res) => {
   const client = await pool.connect(); // FIX: use client instead of pool
@@ -160,8 +161,8 @@ export const createInvoice = async (req, res) => {
     // ====================================
     // 2️⃣ INSERT INVOICE
     // ====================================
-    // Use the first reservation ID as the "primary" for backward compatibility if needed, or null
     const primaryReservationId = reservationIds && reservationIds.length > 0 ? reservationIds[0] : null;
+    const secureToken = crypto.randomBytes(32).toString('hex');
 
     const invoiceQuery = `
       INSERT INTO invoices (
@@ -170,11 +171,11 @@ export const createInvoice = async (req, res) => {
         conversion_rate, sub_total, tax_total, grand_total,
         display_taxes, display_food_charge, extra_services,
         services_name, services_amount, pdf_password, page_break,
-        guest_name_width, round_off_value, created_by
+        guest_name_width, round_off_value, created_by, secure_token
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22, $23
+        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
       )
       RETURNING id
     `;
@@ -202,7 +203,8 @@ export const createInvoice = async (req, res) => {
       toNum(pageBreak),
       toNum(guestNameWidth),
       toNum(roundOffValue),
-      req.user.id
+      req.user.id,
+      secureToken
     ];
 
     const invoiceResult = await client.query(invoiceQuery, invoiceValues);

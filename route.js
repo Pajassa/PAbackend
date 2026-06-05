@@ -17,6 +17,7 @@ import { sendEmail } from "./api/email/resend.js";
 import { createInvoice } from "./api/invioce/invioceform.js"
 import { getAllInvoices, deleteInvoice, getInvoiceById, updateInvoice, downloadInvoice } from "./api/invioce/invoiceListPage.js"
 import { sendInvoiceEmail } from "./api/invioce/invoiceEmail.js";
+import { getPublicInvoice, downloadPublicInvoice } from "./api/invioce/publicInvoiceController.js";
 import { authMiddleware, checkModuleAccess, checkSuperAdmin, checkAdmin } from "./middleware/auth.js";
 
 const router = express.Router();
@@ -86,6 +87,10 @@ router.get("/getInvoiceById/:id", authMiddleware, checkModuleAccess("invoice"), 
 router.put("/updateInvoice/:id", authMiddleware, checkModuleAccess("invoice"), updateInvoice)
 router.get("/downloadInvoice/:id", authMiddleware, checkModuleAccess("invoice"), downloadInvoice)
 router.post("/invoices/send-email", authMiddleware, checkModuleAccess("invoice"), sendInvoiceEmail);
+
+// Public Invoice View & Download (No auth)
+router.get("/public/invoice/:invoiceNumber/:token", getPublicInvoice);
+router.get("/public/invoice/:invoiceNumber/:token/download", downloadPublicInvoice);
 
 
 
