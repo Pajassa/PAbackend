@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import QRCode from 'qrcode';
+import { numberToWords } from '../../helpers/numberToWords.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,13 +43,8 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
         console.error("Logo not found for PDF", err);
     }
 
-    const onlineUrl = `https://billing.pajasaapartments.com/invoice/${invoiceData.invoice_number}/${invoiceData.secure_token}`;
+    const onlineUrl = `https://pajasa.com/invoice/${invoiceData.invoice_number}/${invoiceData.secure_token}`;
     let qrCodeDataUrl = '';
-    try {
-        qrCodeDataUrl = await QRCode.toDataURL(onlineUrl, { margin: 1, width: 100 });
-    } catch (qrErr) {
-        console.error("QR Code generation failed for Puppeteer PDF", qrErr);
-    }
 
     // --- DYNAMIC CALCULATIONS ---
     let totalTaxableAmount = 0;
@@ -121,6 +117,16 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
     const grandTotal = totalWithGST + servicesAmount + roundOffValue;
     const roundedGrandTotal = Math.round(grandTotal);
     const amountInWords = numberToWords(roundedGrandTotal);
+
+    const upiId = process.env.UPI_ID || "pajasastaysolutionspvtltd.9820830989.ibz@icici";
+    const payeeName = process.env.UPI_PAYEE_NAME || "PAJASA STAY SOLUTIONS PVT LTD";
+    const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${roundedGrandTotal}&cu=INR&tn=Invoice%20${invoiceData.invoice_number}`;
+
+    try {
+        qrCodeDataUrl = await QRCode.toDataURL(upiLink, { margin: 1, width: 100 });
+    } catch (qrErr) {
+        console.error("QR Code generation failed for Puppeteer PDF", qrErr);
+    }
 
     const htmlContent = `
 <!DOCTYPE html>
