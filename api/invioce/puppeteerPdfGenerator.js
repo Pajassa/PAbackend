@@ -183,8 +183,8 @@ export const generatePuppeteerPDF = async (invoiceData, lineItems) => {
         </div>
         <div class="company-info">
             <div class="company-name">PAJASA Stay Solutions Pvt. Ltd.</div>
-            307, 3rd Floor, Powai Plaza, Hiranandani Gardens,<br>
-            Central Avenue, Powai, Mumbai - 400076<br>
+            HD 183, C20, We Work Enam Sambhav, G Block Road,<br>
+            Bandra Kurla Complex, Bandra East, Mumbai, Maharashtra, 400051<br>
             24x7 Hotline: 91-22-69999891<br>
             Email: info@pajasaapartments.com<br>
             Web: www.pajasaapartments.com<br>
