@@ -554,10 +554,13 @@ export const generateInvoicePDF = async (invoice, lineItems, res) => {
 
 
     // ===== FOOTER NOTES =====
-    const onlineUrl = `https://billing.pajasaapartments.com/invoice/${invoice.invoice_number}/${invoice.secure_token}`;
+    const onlineUrl = `https://pajasa.com/invoice/${invoice.invoice_number}/${invoice.secure_token}`;
+    const upiId = process.env.UPI_ID || "pajasastaysolutionspvtltd.9820830989.ibz@icici";
+    const payeeName = process.env.UPI_PAYEE_NAME || "PAJASA STAY SOLUTIONS PVT LTD";
+    const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${roundedGrandTotal}&cu=INR&tn=Invoice%20${invoice.invoice_number}`;
     let qrBuffer = null;
     try {
-        qrBuffer = await QRCode.toBuffer(onlineUrl, { type: 'png', margin: 1, width: 85 });
+        qrBuffer = await QRCode.toBuffer(upiLink, { type: 'png', margin: 1, width: 85 });
     } catch (qrError) {
         console.error("Failed to generate QR Code for PDF:", qrError);
     }
