@@ -651,7 +651,7 @@ export const generateInvoicePDF = async (invoice, lineItems, res) => {
 
     doc.fontSize(6.5)
         .font('Roboto-Regular')
-        .text('Corporate Office : HO 83 C20, We Work Enam Sambhavnath Block Road BKC, Bandra Kurla Complex, Mumbai, Maharashtra, 400051', 25, footerY + 23, { width: 545 });
+        .text('Corporate Office : HD 183, C20, We Work Enam Sambhav, G Block Road, Bandra Kurla Complex, Bandra East, Mumbai, Maharashtra, 400051', 25, footerY + 23, { width: 545 });
 
     doc.text('Connect Us : +91 7738777602 | info@pajasaapartments.com | www.pajasaapartments.com', 25, footerY + 38);
 
