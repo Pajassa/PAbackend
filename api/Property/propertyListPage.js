@@ -7,7 +7,7 @@ export async function getallProperty(req, res) {
         const limit = parseInt(req.query.limit) || 30;
         const offset = (page - 1) * limit;
 
-        const { id: userId, role } = req.user;
+        const { id: userId, role, email: userEmail } = req.user;
 
         let filterQuery = "";
         let filterParams = [];
@@ -17,6 +17,9 @@ export async function getallProperty(req, res) {
         } else if (role === "Admin") {
             filterQuery = "(p.created_by = $1 OR p.created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
             filterParams.push(userId);
+        } else if (role === "Read-Only Property Manager") {
+            filterQuery = "p.pajasa_operation_manager_email = $1";
+            filterParams.push(userEmail);
         } else {
             filterQuery = "p.created_by = $1";
             filterParams.push(userId);
@@ -63,6 +66,9 @@ export async function getallProperty(req, res) {
 }
 
 export async function deleteProperty(req, res) {
+    if (req.user && req.user.role === 'Read-Only Property Manager') {
+        return res.status(403).json({ error: "Access denied. Read-only users cannot delete properties." });
+    }
     try {
         const property_Id = parseInt(req.params.id);
         if (isNaN(property_Id)) {
@@ -116,7 +122,14 @@ export async function getPropertyById(req, res) {
             });
         }
 
-        res.json(result.rows[0]);
+        const property = result.rows[0];
+        if (req.user && req.user.role === "Read-Only Property Manager" && property.pajasa_operation_manager_email !== req.user.email) {
+            return res.status(403).json({
+                error: 'Access denied. This property is not assigned to you.'
+            });
+        }
+
+        res.json(property);
     } catch (error) {
         console.error('Error fetching property by ID:', error);
         res.status(500).json({
@@ -126,6 +139,9 @@ export async function getPropertyById(req, res) {
 }
 
 export async function UpdateProperty(req, res) {
+    if (req.user && req.user.role === 'Read-Only Property Manager') {
+        return res.status(403).json({ error: "Access denied. Read-only users cannot update properties." });
+    }
     const client = await pool.connect();
     try {
         await client.query('BEGIN');

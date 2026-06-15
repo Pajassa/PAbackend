@@ -2,6 +2,9 @@ import pool from "../../client.js";
 import crypto from "crypto";
 
 export const createInvoice = async (req, res) => {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ error: "Access denied. Read-only users cannot create invoices." });
+  }
   const client = await pool.connect(); // FIX: use client instead of pool
 
   // Helper: convert empty strings to number

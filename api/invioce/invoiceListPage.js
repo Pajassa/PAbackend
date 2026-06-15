@@ -3,7 +3,7 @@ import pool from "../../client.js";
 export const getAllInvoices = async (req, res) => {
   const client = await pool.connect();
   try {
-    const { id: userId, role } = req.user;
+    const { id: userId, role, email: userEmail } = req.user;
 
     let filterQuery = "";
     let filterParams = [];
@@ -13,6 +13,9 @@ export const getAllInvoices = async (req, res) => {
     } else if (role === "Admin") {
       filterQuery = "(i.created_by = $1 OR i.created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
       filterParams.push(userId);
+    } else if (role === "Read-Only Property Manager") {
+      filterQuery = "p.pajasa_operation_manager_email = $1";
+      filterParams.push(userEmail);
     } else {
       filterQuery = "i.created_by = $1";
       filterParams.push(userId);
@@ -33,6 +36,7 @@ export const getAllInvoices = async (req, res) => {
       FROM invoices i
       LEFT JOIN reservations r ON i.reservation_id = r.id
       LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN properties p ON r.property_id = p.property_id
       WHERE ${filterQuery}
       ORDER BY i.created_at DESC
     `;
@@ -111,6 +115,9 @@ export const getAllInvoices = async (req, res) => {
 };
 
 export const deleteInvoice = async (req, res) => {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ error: "Access denied. Read-only users cannot delete invoices." });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -140,10 +147,12 @@ export const getInvoiceById = async (req, res) => {
       SELECT i.*, 
              r.client_id,
              c.client_name, c.client_nick_name, c.street_address, c.street_address_2, 
-             c.city, c.state, c.zip_code, c.email_address
+             c.city, c.state, c.zip_code, c.email_address,
+             p.pajasa_operation_manager_email
       FROM invoices i
       LEFT JOIN reservations r ON i.reservation_id = r.id
       LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN properties p ON r.property_id = p.property_id
       WHERE i.id = $1
     `;
     const invoiceResult = await client.query(invoiceQuery, [id]);
@@ -153,6 +162,10 @@ export const getInvoiceById = async (req, res) => {
     }
 
     const invoice = invoiceResult.rows[0];
+
+    if (req.user && req.user.role === 'Read-Only Property Manager' && invoice.pajasa_operation_manager_email !== req.user.email) {
+      return res.status(403).json({ success: false, message: "Access denied. This invoice is not associated with your properties." });
+    }
 
     // Fetch line items
     const itemsQuery = 'SELECT * FROM invoice_items WHERE invoice_id = $1';
@@ -209,6 +222,9 @@ export const getInvoiceById = async (req, res) => {
 };
 
 export const updateInvoice = async (req, res) => {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ error: "Access denied. Read-only users cannot update invoices." });
+  }
   const client = await pool.connect();
 
   // Helper: convert empty strings to number (reused from createInvoice logic)
@@ -398,10 +414,12 @@ export const downloadInvoice = async (req, res) => {
       SELECT i.*, 
              c.client_name, c.street_address, c.city as client_city, 
              c.state as client_state, c.zip_code as client_zip, 
-             c.gst_no as client_gst, c.email_address as client_email
+             c.gst_no as client_gst, c.email_address as client_email,
+             p.pajasa_operation_manager_email
       FROM invoices i
       LEFT JOIN reservations r ON i.reservation_id = r.id
       LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN properties p ON r.property_id = p.property_id
       WHERE i.id = $1
     `;
     const invoiceResult = await client.query(invoiceQuery, [id]);
@@ -411,6 +429,10 @@ export const downloadInvoice = async (req, res) => {
     }
 
     const invoice = invoiceResult.rows[0];
+
+    if (req.user && req.user.role === 'Read-Only Property Manager' && invoice.pajasa_operation_manager_email !== req.user.email) {
+      return res.status(403).json({ success: false, message: "Access denied. This invoice is not associated with your properties." });
+    }
 
     // Try to add the column if it doesn't exist
     try {

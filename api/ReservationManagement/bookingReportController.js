@@ -11,8 +11,8 @@ const formatDateString = (d) => {
 };
 
 // Internal function to retrieve and categorise reservations for a client and date
-const getBookingReportDataInternal = async (client, clientId, date) => {
-  const query = `
+const getBookingReportDataInternal = async (client, clientId, date, user = null) => {
+  let query = `
     SELECT 
       r.id,
       r.reservation_no,
@@ -29,7 +29,14 @@ const getBookingReportDataInternal = async (client, clientId, date) => {
     LEFT JOIN properties p ON r.property_id = p.property_id
     WHERE r.client_id = $1 AND r.status != 'Cancelled'
   `;
-  const result = await client.query(query, [clientId]);
+  const params = [clientId];
+
+  if (user && user.role === 'Read-Only Property Manager') {
+    query += ` AND p.pajasa_operation_manager_email = $2`;
+    params.push(user.email);
+  }
+
+  const result = await client.query(query, params);
 
   const targetDate = new Date(date);
   const yesterday = new Date(targetDate);
@@ -99,7 +106,7 @@ export const getBookingReportData = async (req, res) => {
     const clientData = clientResult.rows[0];
 
     const targetDate = date || formatDateString(new Date());
-    const reportData = await getBookingReportDataInternal(client, clientId, targetDate);
+    const reportData = await getBookingReportDataInternal(client, clientId, targetDate, req.user);
 
     res.status(200).json({
       success: true,
@@ -131,7 +138,7 @@ export const downloadBookingReport = async (req, res) => {
     const clientData = clientResult.rows[0];
 
     const targetDate = date || formatDateString(new Date());
-    const reportData = await getBookingReportDataInternal(client, clientId, targetDate);
+    const reportData = await getBookingReportDataInternal(client, clientId, targetDate, req.user);
 
     const pdfBuffer = await generateBookingReportPDF(clientData, targetDate, reportData);
 
@@ -148,6 +155,9 @@ export const downloadBookingReport = async (req, res) => {
 
 // API Endpoint to email Booking Report PDF
 export const sendBookingReportEmail = async (req, res) => {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ error: "Access denied. Read-only users cannot send booking reports." });
+  }
   const { clientId, date, recipientEmails } = req.body;
   const client = await pool.connect();
   try {

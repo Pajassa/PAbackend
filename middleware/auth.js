@@ -72,6 +72,28 @@ export const checkModuleAccess = (moduleName) => {
 
     const { role, modules } = req.user;
 
+    // Read-Only Property Manager logic
+    if (role === "Read-Only Property Manager") {
+      // 1. Strictly block any modification method (POST, PUT, DELETE, PATCH)
+      if (["post", "put", "delete", "patch"].includes(req.method.toLowerCase())) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Access denied. Read-only users cannot perform write operations." 
+        });
+      }
+      
+      // 2. Allow access only to property, reservation, and invoice modules
+      const allowedReadOnlyModules = ["property", "reservation", "invoice"];
+      if (allowedReadOnlyModules.includes(moduleName.toLowerCase())) {
+        return next();
+      }
+      
+      return res.status(403).json({ 
+        success: false, 
+        message: `Access denied. You do not have permission for the ${moduleName} module.` 
+      });
+    }
+
     // Super Admin has full access to everything
     if (role === "Super Admin") {
       return next();

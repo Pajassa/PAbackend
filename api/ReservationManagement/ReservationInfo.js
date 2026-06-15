@@ -36,7 +36,7 @@ export async function getProperty(req, res) {
   try {
     const Address = req.query.Address;
 
-    const query = `
+    let query = `
       SELECT p.* ,
         p.master_bedroom,
         p.common_bedroom,
@@ -47,12 +47,18 @@ export async function getProperty(req, res) {
         h.host_contact_number
       FROM properties p
       LEFT JOIN host_information h ON p.host_id = h.host_id
-      WHERE p.address1 ILIKE $1 
+      WHERE (p.address1 ILIKE $1 
          OR p.address2 ILIKE $1 
-         OR p.address3 ILIKE $1
+         OR p.address3 ILIKE $1)
     `;
+    const params = [`%${Address}%`];
 
-    const result = await pool.query(query, [`%${Address}%`]);
+    if (req.user && req.user.role === "Read-Only Property Manager") {
+      query += " AND p.pajasa_operation_manager_email = $2";
+      params.push(req.user.email);
+    }
+
+    const result = await pool.query(query, params);
     console.log("property data", result);
 
 
@@ -195,6 +201,9 @@ async function checkAvailabilityInternal(client, propertyId, roomTypes, checkInD
 }
 
 export async function saveReservation(req, res) {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ success: false, message: "Access denied. Read-only users cannot create reservations." });
+  }
   const client = await pool.connect();
 
   try {
@@ -432,6 +441,7 @@ async function fetchReservationData(id) {
       p.master_bedroom, p.common_bedroom, p.host_id,
       hi.host_name, hi.host_email,
       p.contact_person, p.contact_number,
+      p.pajasa_operation_manager_email,
       rai.host_base_rate, rai.host_taxes, rai.host_name,
       rai.host_total_amount, rai.apartment_type, rai.host_payment_mode,
       rai.comments, rai.services, rai.note,
@@ -510,6 +520,10 @@ export async function getReservationById(req, res) {
 
     if (!data) return res.status(404).json({ success: false, message: "Reservation not found" });
 
+    if (req.user && req.user.role === 'Read-Only Property Manager' && data.pajasa_operation_manager_email !== req.user.email) {
+      return res.status(403).json({ success: false, message: "Access denied. This reservation is not associated with your properties." });
+    }
+
     res.json({ success: true, data });
 
   } catch (error) {
@@ -521,6 +535,9 @@ export async function getReservationById(req, res) {
 
 
 export async function updateReservation(req, res) {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ success: false, message: "Access denied. Read-only users cannot update reservations." });
+  }
   const client = await pool.connect();
 
   try {
