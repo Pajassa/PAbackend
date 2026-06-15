@@ -159,6 +159,9 @@ export async function getHost(req, res) {
 
 
 export async function createProperty(req, res) {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ error: "Access denied. Read-only users cannot create properties." });
+  }
   try {
     const {
       property_status,

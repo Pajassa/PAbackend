@@ -3,7 +3,7 @@ import pool from "../../client.js";
 export const getAllReservations = async (req, res) => {
   try {
 
-    const { id: userId, role } = req.user;
+    const { id: userId, role, email: userEmail } = req.user;
 
     let filterQuery = "";
     let filterParams = [];
@@ -13,6 +13,9 @@ export const getAllReservations = async (req, res) => {
     } else if (role === "Admin") {
       filterQuery = "(r.created_by = $1 OR r.created_by IN (SELECT id FROM users WHERE parent_admin_id = $1))";
       filterParams.push(userId);
+    } else if (role === "Read-Only Property Manager") {
+      filterQuery = "p.pajasa_operation_manager_email = $1";
+      filterParams.push(userEmail);
     } else {
       filterQuery = "r.created_by = $1";
       filterParams.push(userId);
@@ -85,6 +88,9 @@ r.id,
 
 
 export async function deleteReservation(req, res) {
+  if (req.user && req.user.role === 'Read-Only Property Manager') {
+    return res.status(403).json({ error: "Access denied. Read-only users cannot cancel reservations." });
+  }
   try {
     await pool.query("BEGIN"); // ✅ Start transaction
 
