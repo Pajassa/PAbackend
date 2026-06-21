@@ -1,12 +1,28 @@
 import pool from "../../client.js";
 import { Resend } from "resend";
 import { generateBookingReportPDF } from "./bookingReportPdfGenerator.js";
+import { generateBookingReportEmailHTML } from "./bookingReportEmailGenerator.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const logoPath = path.join(__dirname, "../../logo.png");
 
 // Helper function to format date to YYYY-MM-DD
 const formatDateString = (d) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Helper function to format date to YYYY-MM-DD in UTC
+const formatDateStringUTC = (d) => {
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
@@ -38,15 +54,18 @@ const getBookingReportDataInternal = async (client, clientId, date, user = null)
 
   const result = await client.query(query, params);
 
-  const targetDate = new Date(date);
-  const yesterday = new Date(targetDate);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const tomorrow = new Date(targetDate);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // Parse YYYY-MM-DD string explicitly as UTC midnight to avoid local timezone shifts
+  const [year, month, day] = date.split('-').map(Number);
+  const targetDate = new Date(Date.UTC(year, month - 1, day));
 
-  const targetStr = formatDateString(targetDate);
-  const yesterdayStr = formatDateString(yesterday);
-  const tomorrowStr = formatDateString(tomorrow);
+  const yesterday = new Date(targetDate);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const tomorrow = new Date(targetDate);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  const targetStr = formatDateStringUTC(targetDate);
+  const yesterdayStr = formatDateStringUTC(yesterday);
+  const tomorrowStr = formatDateStringUTC(tomorrow);
 
   const reportData = {
     expectedCheckInToday: [],
@@ -153,7 +172,7 @@ export const downloadBookingReport = async (req, res) => {
   }
 };
 
-// API Endpoint to email Booking Report PDF
+// API Endpoint to email Booking Report HTML Directly
 export const sendBookingReportEmail = async (req, res) => {
   if (req.user && req.user.role === 'Read-Only Property Manager') {
     return res.status(403).json({ error: "Access denied. Read-only users cannot send booking reports." });
@@ -174,7 +193,9 @@ export const sendBookingReportEmail = async (req, res) => {
     const targetDate = date || formatDateString(new Date());
     const reportData = await getBookingReportDataInternal(client, clientId, targetDate);
 
-    const pdfBuffer = await generateBookingReportPDF(clientData, targetDate, reportData);
+    const clientReports = [{ clientData, reportData }];
+    const logoExists = fs.existsSync(logoPath);
+    const htmlContent = generateBookingReportEmailHTML(clientReports, targetDate, logoExists);
 
     let emailsToSend = [];
     if (recipientEmails) {
@@ -185,24 +206,22 @@ export const sendBookingReportEmail = async (req, res) => {
       emailsToSend = [clientData.email_address || 'booking@veridicalhospitality.com'];
     }
 
+    const attachments = [];
+    if (logoExists) {
+      attachments.push({
+        filename: 'logo.png',
+        content: fs.readFileSync(logoPath),
+        cid: 'logo'
+      });
+    }
+
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { data, resendError } = await resend.emails.send({
       from: "booking@pajasaapartments.com",
       to: emailsToSend,
       subject: `PAJASA Booking Report For ${clientData.client_name}:${new Date(targetDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333;">
-          <p>Dear Team,</p>
-          <p>Please find attached the Booking Report for <strong>${clientData.client_name}</strong> for ${new Date(targetDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
-          <p>Regards,<br/><strong>Team PAJASA</strong></p>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: `Booking_Report_${clientData.client_name.replace(/\s+/g, '_')}_${targetDate}.pdf`,
-          content: Buffer.from(pdfBuffer),
-        }
-      ]
+      html: htmlContent,
+      attachments: attachments
     });
 
     if (resendError) {
@@ -239,6 +258,8 @@ export const sendDailyBookingReports = async () => {
     
     const operationalEmails = ['Ps@pajasaapartments.com', 'Operations@pajasaapartments.com', 'harshitshukla6388@gmail.com'];
     
+    const clientReports = [];
+    
     for (const clientData of clients) {
       // 2. Fetch reports for client
       const reportData = await getBookingReportDataInternal(client, clientData.id, targetDate);
@@ -254,38 +275,42 @@ export const sendDailyBookingReports = async () => {
         reportData.ongoingBookings.length;
         
       if (totalEvents > 0) {
-        console.log(`Generating report for ${clientData.client_name} (${totalEvents} events)`);
-        
-        // 4. Generate PDF
-        const pdfBuffer = await generateBookingReportPDF(clientData, targetDate, reportData);
-        
-        // 5. Send report to PAJASA internal operations
-        const { data, resendError } = await resend.emails.send({
-          from: "booking@pajasaapartments.com",
-          to: operationalEmails,
-          subject: `Daily Booking Report - ${clientData.client_name} - Date: ${targetDate}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333;">
-              <p>Hi Team,</p>
-              <p>Please find attached the daily booking report for client <strong>${clientData.client_name}</strong> for ${new Date(targetDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
-              <p>This report has been automatically generated and sent at 06:00 AM IST.</p>
-              <p>Regards,<br/><strong>PAJASA Automation Service</strong></p>
-            </div>
-          `,
-          attachments: [
-            {
-              filename: `Daily_Report_${clientData.client_name.replace(/\s+/g, '_')}_${targetDate}.pdf`,
-              content: Buffer.from(pdfBuffer),
-            }
-          ]
-        });
-        
-        if (resendError) {
-          console.error(`Error emailing daily report for ${clientData.client_name}:`, resendError);
-        } else {
-          console.log(`Daily report email sent for ${clientData.client_name}.`);
-        }
+        console.log(`Adding report for ${clientData.client_name} (${totalEvents} events) to consolidated list.`);
+        clientReports.push({ clientData, reportData });
       }
+    }
+    
+    if (clientReports.length > 0) {
+      console.log(`Sending consolidated daily booking report for ${clientReports.length} clients...`);
+      
+      const logoExists = fs.existsSync(logoPath);
+      const htmlContent = generateBookingReportEmailHTML(clientReports, targetDate, logoExists);
+      
+      const attachments = [];
+      if (logoExists) {
+        attachments.push({
+          filename: 'logo.png',
+          content: fs.readFileSync(logoPath),
+          cid: 'logo'
+        });
+      }
+      
+      // 5. Send consolidated report to PAJASA internal operations
+      const { data, resendError } = await resend.emails.send({
+        from: "booking@pajasaapartments.com",
+        to: operationalEmails,
+        subject: `Daily Booking Report - Consolidated - Date: ${targetDate}`,
+        html: htmlContent,
+        attachments: attachments
+      });
+      
+      if (resendError) {
+        console.error(`Error emailing consolidated daily report:`, resendError);
+      } else {
+        console.log(`Consolidated daily report email sent successfully.`);
+      }
+    } else {
+      console.log("No active booking events found for any client. Daily report email skipped.");
     }
   } catch (err) {
     console.error("Critical error running daily booking reports cron:", err);
