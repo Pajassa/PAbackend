@@ -156,7 +156,23 @@ export const forgotPassword = async (req, res) => {
         const tokenKey = SECRET_KEY + user.password_hash;
         const resetToken = jwt.sign({ id: user.id, email: user.email }, tokenKey, { expiresIn: "1h" });
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        // Determine frontend URL: use FRONTEND_URL env var, or fallback to Origin header, or fallback to Referer, or fallback to localhost
+        let frontendUrl = process.env.FRONTEND_URL;
+        if (!frontendUrl && req.headers.origin) {
+            frontendUrl = req.headers.origin;
+        }
+        if (!frontendUrl && req.headers.referer) {
+            try {
+                const refererUrl = new URL(req.headers.referer);
+                frontendUrl = refererUrl.origin;
+            } catch (e) {
+                // Ignore URL parsing errors
+            }
+        }
+        if (!frontendUrl) {
+            frontendUrl = "http://localhost:5173";
+        }
+
         const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
         const resend = new Resend(process.env.RESEND_API_KEY);
