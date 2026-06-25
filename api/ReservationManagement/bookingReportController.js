@@ -40,9 +40,13 @@ const getBookingReportDataInternal = async (client, clientId, date, user = null)
       p.address2,
       p.address3,
       p.city,
-      p.location
+      p.location,
+      c.client_name AS company_name,
+      rai.host_name
     FROM reservations r
     LEFT JOIN properties p ON r.property_id = p.property_id
+    LEFT JOIN clients c ON r.client_id = c.id
+    LEFT JOIN reservation_additional_info rai ON r.id = rai.reservation_id
     WHERE r.client_id = $1 AND r.status != 'Cancelled'
   `;
   const params = [clientId];

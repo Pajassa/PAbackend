@@ -55,31 +55,66 @@ export const generateBookingReportPDF = async (clientData, targetDate, reportDat
   const clientName = clientData.client_name || 'Veridical Hospitality';
   const clientEmail = clientData.email_address || 'booking@veridicalhospitality.com';
 
+  const enrich = (res) => ({
+    ...res,
+    company_name: res.company_name || clientName
+  });
+
   const renderSection = (title, reservations) => {
     const hasReservations = reservations && reservations.length > 0;
+    const isOngoing = title.toLowerCase().includes("ongoing");
+
+    if (!hasReservations) {
+      return `
+        <div class="section-container">
+          <div class="section-header">${title}</div>
+          <div class="no-records-box">No Records found</div>
+        </div>
+      `;
+    }
+
+    const enrichedReservations = reservations.map(enrich);
+
     return `
       <div class="section-container">
         <div class="section-header">${title}</div>
-        <div class="section-content">
-          ${hasReservations ? reservations.map(res => `
-            <div class="booking-card">
-              <div class="booking-col">
-                <div class="col-title">Booking Details</div>
-                <div class="detail-row"><span class="label">Reservation No. :</span><span class="value bold-val">${res.reservation_no}</span></div>
-                <div class="detail-row"><span class="label">Guest:</span><span class="value">${res.guest_name}</span></div>
-                <div class="detail-row"><span class="label">Check-In Date:</span><span class="value">${formatDateIndian(res.check_in_date)}</span></div>
-                <div class="detail-row"><span class="label">Check-Out Date:</span><span class="value">${formatDateIndian(res.check_out_date)}</span></div>
-              </div>
-              <div class="booking-col">
-                <div class="col-title">Address</div>
-                <div class="detail-row"><span class="label">Contact No.:</span><span class="value green-val">${res.contact_number || 'N/A'}</span></div>
-                <div class="detail-row"><span class="label">Address :</span><span class="value">${[res.address1, res.address2, res.address3, res.city].filter(Boolean).join(', ')}</span></div>
-              </div>
-            </div>
-          `).join('') : `
-            <div class="no-reservation">No Reservation Found</div>
-          `}
-        </div>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Resv No.</th>
+              <th>C.I.D</th>
+              <th>C.O.D</th>
+              <th>Guest</th>
+              <th>Company</th>
+              <th>Host</th>
+              <th>Address</th>
+              <th>Contact</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${enrichedReservations.map(res => {
+              const cid = isOngoing ? res.check_in_date : formatDateIndian(res.check_in_date);
+              const cod = isOngoing ? res.check_out_date : formatDateIndian(res.check_out_date);
+              const address = [res.address1, res.address2, res.address3, res.city].filter(Boolean).join(', ');
+              const contact = res.contact_number || 'NA';
+              const company = res.company_name;
+              const host = res.host_name || 'N/A';
+
+              return `
+                <tr>
+                  <td class="bold-val nowrap">${res.reservation_no}</td>
+                  <td class="nowrap">${cid}</td>
+                  <td class="nowrap">${cod}</td>
+                  <td>${res.guest_name}</td>
+                  <td>${company}</td>
+                  <td>${host}</td>
+                  <td>${address}</td>
+                  <td class="green-val font-mono">${contact}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
       </div>
     `;
   };
@@ -101,11 +136,11 @@ export const generateBookingReportPDF = async (clientData, targetDate, reportDat
       }
     }
     body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       margin: 0;
       padding: 0;
-      color: #333;
-      font-size: 9pt;
+      color: #2d3748;
+      font-size: 8.5pt;
       line-height: 1.4;
       background: white;
     }
@@ -113,8 +148,8 @@ export const generateBookingReportPDF = async (clientData, targetDate, reportDat
       display: flex;
       justify-content: space-between;
       font-size: 7.5pt;
-      color: #555;
-      border-bottom: 1px solid #ddd;
+      color: #718096;
+      border-bottom: 1px solid #e2e8f0;
       padding-bottom: 4px;
       margin-bottom: 15px;
     }
@@ -122,29 +157,18 @@ export const generateBookingReportPDF = async (clientData, targetDate, reportDat
       padding: 0px 5px;
     }
     .email-header-info {
-      font-size: 9.5pt;
+      font-size: 8.5pt;
       margin-bottom: 20px;
       line-height: 1.5;
+      color: #4a5568;
     }
     .email-header-info p {
       margin: 3px 0;
     }
-    .welcome-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 20px;
-      background-color: #fafafa;
+    .welcome-header-table {
+      width: 100%;
       margin-bottom: 25px;
-      display: flex;
-      flex-direction: column;
-    }
-    .welcome-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 15px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 15px;
+      border-collapse: collapse;
     }
     .welcome-logo {
       height: 40px;
@@ -152,114 +176,77 @@ export const generateBookingReportPDF = async (clientData, targetDate, reportDat
     .welcome-logo img {
       height: 100%;
     }
-    .welcome-title-area {
-      text-align: right;
-    }
     .report-main-title {
-      font-size: 14pt;
+      font-size: 16pt;
       font-weight: bold;
       letter-spacing: 0.5px;
       margin: 0;
-      color: #2c3e50;
+      color: #2d3748;
     }
     .report-sub-title {
       font-size: 11pt;
-      font-weight: bold;
-      color: #555;
-      margin: 3px 0 0 0;
-    }
-    .welcome-text {
-      color: #7f8c8d;
-      font-size: 9pt;
-      margin: 0 0 10px 0;
-    }
-    .welcome-user-id {
-      font-weight: bold;
-      color: #27ae60;
-      margin-bottom: 10px;
-      font-size: 9pt;
-    }
-    .welcome-links {
-      font-size: 8.5pt;
-      font-weight: bold;
-    }
-    .welcome-links a {
-      color: #3498db;
-      text-decoration: none;
-    }
-    .welcome-links span {
-      color: #ccc;
-      margin: 0 8px;
+      font-weight: normal;
+      color: #718096;
+      margin: 5px 0 0 0;
     }
     .section-container {
       margin-bottom: 25px;
       page-break-inside: avoid;
     }
     .section-header {
-      font-size: 11.5pt;
+      font-size: 11pt;
       font-weight: bold;
-      color: #2c3e50;
-      padding-bottom: 5px;
-      border-bottom: 3.5px solid #f39c12;
-      margin-bottom: 12px;
-    }
-    .no-reservation {
-      color: #c0392b;
-      font-weight: bold;
-      font-size: 9.5pt;
-      padding: 5px 0 15px 0;
-    }
-    .booking-card {
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 15px;
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: space-between;
-      background: #fff;
-      page-break-inside: avoid;
-    }
-    .booking-col {
-      width: 48%;
-    }
-    .col-title {
-      font-size: 10pt;
-      font-weight: bold;
-      color: #2c3e50;
+      color: #2d3748;
       margin-bottom: 10px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 4px;
     }
-    .detail-row {
-      margin-bottom: 6px;
+    .no-records-box {
+      border: 1px solid #ff0000;
+      padding: 10px;
+      margin-bottom: 20px;
+      color: #ff0000;
       font-size: 8.5pt;
-      display: flex;
-      align-items: flex-start;
-    }
-    .detail-row .label {
       font-weight: bold;
-      color: #333;
-      width: 110px;
-      flex-shrink: 0;
+      text-align: left;
+      background-color: #fff5f5;
+      border-radius: 4px;
     }
-    .detail-row .value {
-      color: #555;
-      flex: 1;
+    .report-table {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 8pt;
+    }
+    .report-table th, .report-table td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+    }
+    .report-table th {
+      background-color: #f8fafc;
+      font-weight: bold;
+      color: #2d3748;
+    }
+    .report-table td {
+      color: #4a5568;
     }
     .bold-val {
       font-weight: bold;
-      color: #000 !important;
+      color: #1a202c !important;
     }
     .green-val {
-      color: #27ae60 !important;
+      color: #2f855a !important;
       font-weight: bold;
+    }
+    .nowrap {
+      white-space: nowrap;
     }
     .footer-rights {
       text-align: center;
       font-size: 8pt;
-      color: #7f8c8d;
+      color: #a0aec0;
       margin-top: 30px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid #e2e8f0;
       padding-top: 15px;
     }
   </style>
@@ -280,25 +267,20 @@ export const generateBookingReportPDF = async (clientData, targetDate, reportDat
       <p>To "booking" &lt;${clientEmail}&gt;, "operations" &lt;operations@pajasaapartments.com&gt;</p>
     </div>
 
-    <!-- Main Container Card -->
-    <div class="welcome-card">
-      <div class="welcome-top">
-        <div class="welcome-logo">
-          ${logoBase64 ? `<img src="${logoBase64}" alt="PAJASA Logo" />` : `<div style="font-weight: 900; font-size: 20px; color: #f39c12;">PA</div>`}
-        </div>
-        <div class="welcome-title-area">
+    <!-- Header -->
+    <table class="welcome-header-table">
+      <tr>
+        <td align="left" style="vertical-align: middle;">
+          <div class="welcome-logo">
+            ${logoBase64 ? `<img src="${logoBase64}" alt="PAJASA APARTMENTS- Service Apartments in India" />` : `<div style="font-weight: 900; font-size: 20px; color: #3182ce;">PAJASA APARTMENTS</div>`}
+          </div>
+        </td>
+        <td align="right" style="vertical-align: middle; text-align: right;">
           <h1 class="report-main-title">BOOKING REPORT</h1>
           <h2 class="report-sub-title">${clientName}</h2>
-        </div>
-      </div>
-      <div class="welcome-text">Now you can manage your rooms and booking with our new web application.</div>
-      <div class="welcome-user-id">Your User Id: ${clientEmail}</div>
-      <div class="welcome-links">
-        <a href="#">Reset Password</a>
-        <span>|</span>
-        <a href="#">Click here to Login</a>
-      </div>
-    </div>
+        </td>
+      </tr>
+    </table>
 
     <!-- Report Sections -->
     ${renderSection("Expected Check-In Today", reportData.expectedCheckInToday)}
